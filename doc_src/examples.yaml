@@ -1,0 +1,77 @@
+#RTM: 
+#  data-file:
+#    - ../quoFEM/Examples/index.json
+#    - ../R2DTool/Examples/index.json
+#    - ../EE-UQ/Examples/index.json
+#
+pelicun: {}
+PBE:
+  include-item:
+    - pbdl-0001
+    - pbdl-0002    
+    - pbdl-0003
+
+
+quoFEM:
+  include-item:
+    - qfem-0001 
+    - qfem-0002
+    - qfem-0005
+    - qfem-0007
+    - qfem-0009
+    - qfem-0014
+    - qfem-0015    
+    - qfem-0016
+    - qfem-0017
+    - qfem-0019
+    - qfem-0022    
+    - qfem-0023
+    - qfem-0025
+    - qfem-0027
+    - qfem-0028
+
+WE-UQ:
+  include-item:
+    - weuq-0001
+    - weuq-0007
+    - weuq-0012
+    - weuq-0011
+    - weuq-0013
+    - weuq-0014
+    - weuq-0015
+
+EE-UQ:
+  include-item:
+    - eeuq-0001
+    - eeuq-0002
+    - eeuq-0003
+    - eeuq-0004
+    - eeuq-0005
+    - eeuq-0006
+    - eeuq-0007
+    - eeuq-0008
+    - eeuq-0009
+    - eeuq-0010
+    - eeuq-0011
+
+R2DTool:
+  include-item:
+  - E1BasicHAZUS
+  - E2MDOFBuildingResponse
+  - E3PhysicsBasedGroundMotions
+  - E4OpenSeesPyFEM
+  - E5GroundShakingAndLiquefaction
+  - E6ShakemapScenario
+  - E7HurricaneWindWater
+  - E8HurricaneWind
+  - E9Tsunami
+  - E10SiteResponse
+  - E12IstanbulRegionalSeismicRiskAnalysis
+  - E14BasicHAZUSTransportation
+
+HydroUQ:
+  include-item:
+    - hdro-0001
+
+requirements: []
+
