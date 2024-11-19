@@ -43,7 +43,7 @@
 from __future__ import annotations
 
 import argparse
-import datetime
+from datetime import datetime, timezone
 import json
 import pprint
 import sys
@@ -412,7 +412,7 @@ class Logger:
 
         for msg_i, msg_line in enumerate(msg_lines):
             if prepend_timestamp and (msg_i == 0):
-                formatted_msg = f'{datetime.datetime.now().strftime(self.log_time_format)} {msg_line}'  # noqa: DTZ005
+                formatted_msg = f'{datetime.now().strftime(self.log_time_format)} {msg_line}'  # noqa: DTZ005
             elif prepend_timestamp or prepend_blank_space:
                 formatted_msg = self.spaces + msg_line
             else:
@@ -487,9 +487,9 @@ class Logger:
         self.msg(
             'System Information:', prepend_timestamp=False, prepend_blank_space=False
         )
-        start = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')  # noqa: DTZ005
+        start = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')  # noqa: DTZ005
         self.msg(
-            f'local time zone: {datetime.datetime.utcnow().astimezone().tzinfo}\n'
+            f'local time zone: {datetime.now(timezone.utc).astimezone().tzinfo}\n'
             f'start time: {start}\n'
             f'python: {sys.version}\n'
             f'numpy: {np.__version__}\n'
