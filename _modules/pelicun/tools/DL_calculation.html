@@ -544,9 +544,8 @@
             <span class="p">),</span>
             <span class="n">custom_model_dir</span><span class="o">=</span><span class="n">custom_model_dir</span><span class="p">,</span>
             <span class="n">scaling_specification</span><span class="o">=</span><span class="n">get</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s1">&#39;DL/Damage/ScalingSpecification&#39;</span><span class="p">),</span>
-            <span class="n">is_for_water_network_assessment</span><span class="o">=</span><span class="n">is_specified</span><span class="p">(</span>
-                <span class="n">config</span><span class="p">,</span> <span class="s1">&#39;DL/Asset/ComponentDatabase/Water&#39;</span>
-            <span class="p">),</span>
+            <span class="n">is_for_water_network_assessment</span><span class="o">=</span><span class="s1">&#39;Water&#39;</span>
+            <span class="ow">in</span> <span class="n">get</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s1">&#39;DL/Asset/ComponentDatabase&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">is_unspecified</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="s1">&#39;DL/Losses/Repair&#39;</span><span class="p">):</span>
@@ -881,6 +880,10 @@
             <span class="n">config_ap</span><span class="p">[</span><span class="s1">&#39;DL&#39;</span><span class="p">][</span><span class="s1">&#39;Outputs&#39;</span><span class="p">][</span><span class="s1">&#39;Settings&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
                 <span class="n">regional_out_config</span><span class="p">[</span><span class="s1">&#39;Settings&#39;</span><span class="p">]</span>
             <span class="p">)</span>
+
+        <span class="c1"># if no loss simulation is requested, remove the corresponding outputs</span>
+        <span class="k">if</span> <span class="n">is_unspecified</span><span class="p">(</span><span class="n">config_ap</span><span class="p">,</span> <span class="s1">&#39;DL/Losses&#39;</span><span class="p">):</span>
+            <span class="n">update</span><span class="p">(</span><span class="n">config_ap</span><span class="p">,</span> <span class="s1">&#39;DL/Outputs/Loss&#39;</span><span class="p">,</span> <span class="p">{})</span>
 
         <span class="c1"># save the extended config to a file</span>
         <span class="n">config_ap_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">config_path</span><span class="o">.</span><span class="n">stem</span> <span class="o">+</span> <span class="s1">&#39;_ap.json&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
