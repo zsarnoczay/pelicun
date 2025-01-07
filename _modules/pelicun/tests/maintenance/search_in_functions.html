@@ -6,7 +6,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>pelicun.tests.maintenance.search_in_functions &mdash; pelicun  documentation</title>
-      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/custom.css?v=f9bf6728" />
@@ -19,6 +19,7 @@
       <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script src="../../../../_static/design-tabs.js?v=f930bc37"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="../../../../_static/hide_empty_pre.js?v=a807066b"></script>
     <script src="../../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../search.html" /> 
@@ -95,8 +96,9 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../user_guide/bug_reports_and_feature_requests.html">5. Bug reports and feature requests</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../user_guide/resources_for_new_python_users.html">6. Resources for new python users</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../examples/index.html">7. Examples</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../../../examples/index.html#complete-list">7.1. Complete list</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../examples/index.html#grouped-by-feature">7.2. Grouped by feature</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../examples/notebooks/example_1.html">7.1. Example 1: Simple loss function.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../examples/notebooks/example_2.html">7.2. Example 2: Damage state validation.</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../examples/notebooks/example_3.html">7.3. Example 3: Combining fragility-based damage consequences and loss functions.</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../api_reference/index.html">8. API Reference</a><ul>
@@ -185,15 +187,15 @@
 
 <span class="sd">&quot;&quot;&quot;Code inspection methods/functions.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>  <span class="c1"># noqa: I001</span>
-<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>  <span class="c1"># noqa: I001</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
-<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ast</span>
 
 
 <div class="viewcode-block" id="visit_FunctionDef">
 <a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.maintenance.search_in_functions.html#pelicun.tests.maintenance.search_in_functions.visit_FunctionDef">[docs]</a>
-<span class="k">def</span> <span class="nf">visit_FunctionDef</span><span class="p">(</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">visit_FunctionDef</span><span class="p">(</span>
     <span class="n">node</span><span class="p">:</span> <span class="n">ast</span><span class="o">.</span><span class="n">FunctionDef</span><span class="p">,</span>
     <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
     <span class="n">search_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
@@ -229,7 +231,7 @@
 
 <div class="viewcode-block" id="find_functions_with_string">
 <a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.maintenance.search_in_functions.html#pelicun.tests.maintenance.search_in_functions.find_functions_with_string">[docs]</a>
-<span class="k">def</span> <span class="nf">find_functions_with_string</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">search_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_functions_with_string</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">search_string</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Finds functions in a Python file that contain a specific string in</span>
 <span class="sd">    their body.</span>
@@ -269,7 +271,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2024, Leland Stanford Junior University and The Regents of the University of California.</p>
+    <p>&#169; Copyright 2025, Leland Stanford Junior University and The Regents of the University of California.</p>
   </div>
 
    
