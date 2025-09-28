@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Version 3.7.1 (August 12, 2025) &mdash; pelicun  documentation</title>
+  <title>Version 3.8.1 (September 27, 2025) &mdash; pelicun  documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
@@ -24,8 +24,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Version 3.7.0 (August 7, 2025)" href="v3.7.0.html" />
-    <link rel="prev" title="Version 3.8.0 (September 15, 2025)" href="v3.8.0.html" /> 
+    <link rel="next" title="Version 3.8.0 (September 15, 2025)" href="v3.8.0.html" />
+    <link rel="prev" title="Unreleased" href="unreleased.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -144,7 +144,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="index.html"><span class="section-number">5. </span>Release Notes</a></li>
-      <li class="breadcrumb-item active">Version 3.7.1 (August 12, 2025)</li>
+      <li class="breadcrumb-item active">Version 3.8.1 (September 27, 2025)</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -153,9 +153,42 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="version-3-7-1-august-12-2025">
-<span id="changes-v3-7-1"></span><h1>Version 3.7.1 (August 12, 2025)<a class="headerlink" href="#version-3-7-1-august-12-2025" title="Link to this heading"></a></h1>
-<p>This is a patch release that enables flood loss simulation through SimCenter’s backend and addresses a few bugs.</p>
+  <section id="version-3-8-1-september-27-2025">
+<span id="changes-v3-8-1"></span><h1>Version 3.8.1 (September 27, 2025)<a class="headerlink" href="#version-3-8-1-september-27-2025" title="Link to this heading"></a></h1>
+<section id="changed">
+<h2>Changed<a class="headerlink" href="#changed" title="Link to this heading"></a></h2>
+<p><strong>Enhanced DLML Test Suite</strong>: A complete overhaul of the test suite for the DLML module to improve reliability and test coverage:</p>
+<ul class="simple">
+<li><p>Replaced brittle, unit-style tests with a new suite of robust integration and end-to-end tests.</p></li>
+<li><p>Added a new end-to-end test using a local HTTP server (<cite>pytest-httpserver</cite>) to simulate the entire download workflow, ensuring high confidence in the process.</p></li>
+<li><p>Overhauled network mocks to be more realistic, allowing for more accurate validation of download behavior.</p></li>
+</ul>
+<p><strong>Improved DLML Module Configuration</strong>:</p>
+<ul class="simple">
+<li><p>Refactored the module to resolve all configuration from environment variables at runtime, significantly improving testability and isolation.</p></li>
+</ul>
+<p><strong>DLML Data</strong>:</p>
+<ul class="simple">
+<li><p>Updated the default data version for the Damage and Loss Model Library to <cite>v2.1.0</cite>.</p></li>
+</ul>
+<p><strong>Dependencies</strong>:</p>
+<ul class="simple">
+<li><p>Added <cite>pytest-httpserver</cite> as a new development dependency to support the enhanced end-to-end testing.</p></li>
+</ul>
+</section>
+<section id="fixed">
+<h2>Fixed<a class="headerlink" href="#fixed" title="Link to this heading"></a></h2>
+<p><strong>DLML Robustness and Reliability</strong>:</p>
+<ul class="simple">
+<li><p>Increased network timeouts for file downloads to prevent errors on slower connections.</p></li>
+<li><p>Improved the reliability of the recommended <code class="docutils literal notranslate"><span class="pre">dlml</span> <span class="pre">update</span></code> command shown to users, ensuring it works correctly on all platforms, especially those with spaces in the Python path.</p></li>
+</ul>
+<p><strong>Developer Experience</strong>:</p>
+<ul class="simple">
+<li><p>Performed a comprehensive code quality pass on the entire test suite, standardizing docstrings, adding complete type hints, and improving code style for better maintainability.</p></li>
+<li><p>Made the main CLI script directly executable to simplify development and debugging workflows.</p></li>
+</ul>
+</section>
 </section>
 
 
