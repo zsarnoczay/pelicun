@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pelicun"
-version = "3.9.0"
+version = "3.10.0.dev0"
 description = "Probabilistic Estimation of Losses, Injuries, and Community resilience Under Natural hazard events"
 readme = "README.md"
+requires-python = ">=3.9"
 license = {text = "BSD-3-Clause"}
 authors = [
     {name = "Adam Zsarnóczay", email = "adamzs@stanford.edu"}
@@ -28,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -45,37 +47,33 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-development = [
-    "codespell",
-    "flake8",
-    "flake8-bugbear",
-    "flake8-rst",
-    "flake8-rst",
-    "flake8-rst-docstrings",
+test = [
     "glob2",
-    "jsonpath2",
-    "jupyter",
-    "jupytext",
-    "mypy",
-    "nbsphinx",
-    "numpydoc",
-    "pandas-stubs",
-    "pydocstyle",
-    "pylint",
-    "pylint-pytest",
     "pytest",
     "pytest-cov",
     "pytest-httpserver",
     "pytest-socket",
     "pytest-xdist",
-    "rendre>0.0.14",
+]
+lint = [
+    "codespell",
+    "mypy",
+    "pandas-stubs",
     "ruff==0.7.0",
+    "types-colorama",
+]
+doc = [
+    "jupyter",
+    "jupytext",
+    "nbsphinx",
+    "numpydoc",
     "sphinx",
-    "sphinx-autoapi",
     "sphinx-rtd-theme",
     "sphinx_design",
     "sphinxcontrib-bibtex",
-    "types-colorama",
+]
+development = [
+    "pelicun[test,lint,doc]",
 ]
 
 [project.scripts]
@@ -93,6 +91,9 @@ exclude = ["doc_src*"]
 
 [tool.ruff]
 line-length = 85
+# Keep lint behavior as it was before `requires-python` was added Bumping this
+# activates UP035 and others on existing code.
+target-version = "py38"
 exclude = [
   "rulesets",
   "examples",

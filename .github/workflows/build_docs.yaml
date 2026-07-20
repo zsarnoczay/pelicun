@@ -3,29 +3,36 @@ on:
   push:
     branches:
       - master
+
+# The deploy step pushes the built pages to the gh-pages branch.
+permissions:
+  contents: write
+
+env:
+  # Pin uv so CI matches the committed uv.lock resolver and the local dev version.
+  UV_VERSION: '0.10.9'
+
 jobs:
   build-docs:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ['3.10']
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python environment
-        uses: actions/setup-python@v3
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.12'
+          enable-cache: true
+      - name: Install pandoc
         run: |
           sudo apt-get update
           sudo apt-get install -y pandoc
-          python -m pip install -e .[development]
+      - name: Sync environment
+        run: uv sync --locked --extra doc
       - name: Build docs
-        run: cd doc && make html
+        run: cd doc && uv run --no-sync make html
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./doc/build/html
