@@ -487,7 +487,16 @@ class TestLossModel(TestPelicunModel):
         # model resolves demand types through the assessment-scoped
         # vocabulary.
         sample_size = 5
-        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+        asmnt = Assessment(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {
+                        'Acronym': 'STR',
+                        'UnitType': 'rotation',
+                    }
+                }
+            }
+        )
 
         # demand sample with the custom `STR` demand type
         demand_sample = pd.DataFrame(

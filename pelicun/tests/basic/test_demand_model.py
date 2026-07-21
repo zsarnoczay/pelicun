@@ -615,7 +615,16 @@ class TestDemandModel(TestModelModule):  # noqa: PLR0904
             {('testing.component', '1', '1', '1'): [1]}, index=['Blocks']
         ).T.rename_axis(index=['cmp', 'loc', 'dir', 'uid'])
 
-        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+        asmnt = Assessment(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {
+                        'Acronym': 'STR',
+                        'UnitType': 'rotation',
+                    }
+                }
+            }
+        )
         asmnt.damage.load_model_parameters([damage_db_path], {'testing.component'})
         required = _get_required_demand_type(
             ensure_value(asmnt.damage.ds_model.damage_params),
@@ -653,7 +662,16 @@ class TestDemandModel(TestModelModule):  # noqa: PLR0904
         # End-to-end: a damage calculation driven by a custom demand
         # type registered through the `CustomDemandTypes` option.
         sample_size = 5
-        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+        asmnt = Assessment(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {
+                        'Acronym': 'STR',
+                        'UnitType': 'rotation',
+                    }
+                }
+            }
+        )
         asmnt.stories = 1
 
         # Demand sample with the custom `STR` demand type.

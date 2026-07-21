@@ -14,13 +14,27 @@ and to the package classifiers, and the package now declares
 **Custom Demand Types**: The new ``CustomDemandTypes`` option
 registers custom entries in the demand-type vocabulary of an
 assessment, e.g.,
-``{"Options": {"CustomDemandTypes": {"Story Torsion Ratio": "STR"}}}``.
-Entries map verbose demand names to short acronyms, extending the
-default vocabulary and, if a default name is reused, overriding its
-acronym. The custom entries only apply to assessments configured with
-them. This replaces the former practice of editing
-``EDP_to_demand_type`` in ``pelicun/base.py``, which stopped working
-when the vocabulary moved to the model library.
+``{"Options": {"CustomDemandTypes": {"Story Torsion Ratio":
+{"Acronym": "STR", "UnitType": "unitless"}}}}``.
+Entries map verbose demand names to a short acronym and the unit type
+the demand is measured in, drawn from the model library's unit-type
+vocabulary, extending the default vocabulary and, if a default name
+is reused, overriding it. Unit handling works for custom demands:
+when a demand file arrives without units, the assessment assigns the
+unit matching the registered unit type (e.g., an ``acceleration``
+demand in an assessment using inches is interpreted in ``inchps2``)
+and applies the corresponding unit conversion. Pelicun currently
+implements this automatic unit assignment for the ``acceleration``,
+``speed``, ``displacement``, ``unitless``, and ``rotation`` unit
+types; ``force``, ``force_per_length``, and ``pressure`` are
+recognized but not yet implemented, and pelicun raises a clear error
+if a demand provided without explicit units needs one of them.
+Demand types that are neither default nor registered are still
+assumed to be in base units, and pelicun now warns about them
+instead of skipping them silently. The custom entries only apply to
+assessments configured with them. This replaces the former practice
+of editing ``EDP_to_demand_type`` in ``pelicun/base.py``, which
+stopped working when the vocabulary moved to the model library.
 
 Changed
 -------
@@ -62,13 +76,15 @@ a regular pip-installed dependency of pelicun.
   script now persists across those calls — enabling one-time setup
   work and cross-asset caching — but scripts must not assume a fresh
   re-initialization on every call.
-- The demand-type vocabulary (``EDP_to_demand_type``) is now imported
-  from the ``simcenter-dlml`` package, making the model library the
-  single source of truth for the controlled vocabularies used in the
-  model data. Pelicun keeps its own copy of the vocabulary in
-  ``base.EDP_to_demand_type``, so runtime modifications of that
-  dictionary remain pelicun-scoped; use the new ``CustomDemandTypes``
-  option to extend the vocabulary of an assessment.
+- The demand-type vocabulary is now imported from the
+  ``simcenter-dlml`` package, making the model library the single
+  source of truth for the controlled vocabularies used in the model
+  data. Each entry carries the demand's acronym and unit type
+  (``dlml.EDP_TYPES``). Pelicun keeps its own copy of the vocabulary
+  in ``base.EDP_TYPES`` (with the derived ``base.EDP_to_demand_type``
+  view), so runtime modifications of those dictionaries remain
+  pelicun-scoped; use the new ``CustomDemandTypes`` option to extend
+  the vocabulary of an assessment.
 
 **Model-Library Version in Assessment Logs**: Assessment logs now
 record the version of the installed model-library package (``DLML``)

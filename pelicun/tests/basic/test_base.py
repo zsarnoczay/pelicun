@@ -120,36 +120,183 @@ def test_nondir_multi() -> None:
 
 
 def test_options_custom_demand_types() -> None:
-    # Without the option, the assessment-scoped mapping matches the
-    # module-level defaults but is an independent copy.
+    # Without the option, the assessment-scoped mappings match the
+    # module-level defaults but are independent copies.
     options = base.Options({})
     assert options.edp_to_demand_type == base.EDP_to_demand_type
     assert options.edp_to_demand_type is not base.EDP_to_demand_type
+    assert options.demand_unit_types['PFA'] == 'acceleration'
+    assert options.demand_unit_types['PGV'] == 'speed'
+    assert options.demand_unit_types['PFD'] == 'displacement'
+    assert options.demand_unit_types['PID'] == 'unitless'
+    assert options.demand_unit_types['LR'] == 'rotation'
 
     # Custom entries extend the defaults.
-    options = base.Options({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+    options = base.Options(
+        {
+            'CustomDemandTypes': {
+                'Story Torsion Ratio': {'Acronym': 'STR', 'UnitType': 'unitless'}
+            }
+        }
+    )
     assert options.edp_to_demand_type['Story Torsion Ratio'] == 'STR'
     assert options.edp_to_demand_type['Story Drift Ratio'] == 'PID'
+    assert options.demand_unit_types['STR'] == 'unitless'
     assert len(options.edp_to_demand_type) == len(base.EDP_to_demand_type) + 1
     # The module-level defaults are unaffected.
     assert 'Story Torsion Ratio' not in base.EDP_to_demand_type
+    assert 'Story Torsion Ratio' not in base.EDP_TYPES
+    assert 'STR' not in base.Options({}).demand_unit_types
 
     # Custom entries may override the defaults.
-    options = base.Options({'CustomDemandTypes': {'Story Drift Ratio': 'SDR'}})
+    options = base.Options(
+        {
+            'CustomDemandTypes': {
+                'Story Drift Ratio': {'Acronym': 'SDR', 'UnitType': 'unitless'}
+            }
+        }
+    )
     assert options.edp_to_demand_type['Story Drift Ratio'] == 'SDR'
+    assert options.demand_unit_types['SDR'] == 'unitless'
     assert base.EDP_to_demand_type['Story Drift Ratio'] == 'PID'
 
     # Invalid entries raise clear errors.
-    with pytest.raises(TypeError, match='must be strings'):
-        base.Options({'CustomDemandTypes': {1: 'STR'}})
-    with pytest.raises(TypeError, match='must be strings'):
-        base.Options({'CustomDemandTypes': {'Story Torsion Ratio': 1}})
-    with pytest.raises(ValueError, match='must not be empty'):
-        base.Options({'CustomDemandTypes': {'': 'STR'}})
-    with pytest.raises(ValueError, match='must not be empty'):
-        base.Options({'CustomDemandTypes': {'Story Torsion Ratio': ''}})
+    valid_entry = {'Acronym': 'STR', 'UnitType': 'unitless'}
     with pytest.raises(ValueError, match='should map to a dictionary'):
         base.Options({'CustomDemandTypes': 'STR'})
+    with pytest.raises(TypeError, match='must be strings'):
+        base.Options({'CustomDemandTypes': {1: valid_entry}})
+    with pytest.raises(ValueError, match='must not be empty'):
+        base.Options({'CustomDemandTypes': {'': valid_entry}})
+    # The former string form is rejected: each entry must be a dict.
+    with pytest.raises(TypeError, match='must map to a dictionary'):
+        base.Options({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+    # Both the acronym and the unit type are required.
+    with pytest.raises(ValueError, match=r"missing.*\['UnitType'\]"):
+        base.Options(
+            {'CustomDemandTypes': {'Story Torsion Ratio': {'Acronym': 'STR'}}}
+        )
+    with pytest.raises(ValueError, match=r"missing.*\['Acronym'\]"):
+        base.Options(
+            {'CustomDemandTypes': {'Story Torsion Ratio': {'UnitType': 'unitless'}}}
+        )
+    # Unknown keys are rejected.
+    with pytest.raises(ValueError, match=r"unknown key\(s\): \['UnitTYpe'\]"):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {**valid_entry, 'UnitTYpe': 'unitless'}
+                }
+            }
+        )
+    # Values must be non-empty strings.
+    with pytest.raises(TypeError, match='must be strings'):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {'Acronym': 1, 'UnitType': 'unitless'}
+                }
+            }
+        )
+    with pytest.raises(ValueError, match='must not be empty'):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {'Acronym': '', 'UnitType': 'unitless'}
+                }
+            }
+        )
+    # The unit type must come from the controlled vocabulary.
+    with pytest.raises(ValueError, match='not a valid unit type'):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {'Acronym': 'STR', 'UnitType': 'torsion'}
+                }
+            }
+        )
+
+
+def test_options_custom_demand_types_unsupported_unit_type() -> None:
+    # The model library's unit-type vocabulary is broader than what
+    # pelicun's automatic unit assignment implements: 'force' is a
+    # valid unit type, but pelicun does not support it yet. A custom
+    # entry using such a unit type is rejected at configuration time
+    # with a message that suggests upgrading pelicun.
+    with pytest.raises(
+        ValueError,
+        match='`force`.*not yet supported by this version of pelicun',
+    ):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Peak Floor Force': {'Acronym': 'PFF', 'UnitType': 'force'}
+                }
+            }
+        )
+
+
+def test_options_custom_demand_types_acronym_conflict() -> None:
+    # Two demand names may share an acronym only if they agree on the
+    # unit type.
+    options = base.Options(
+        {
+            'CustomDemandTypes': {
+                'Story Torsion Ratio': {'Acronym': 'STR', 'UnitType': 'unitless'},
+                'Peak Story Torsion Ratio': {
+                    'Acronym': 'STR',
+                    'UnitType': 'unitless',
+                },
+            }
+        }
+    )
+    assert options.demand_unit_types['STR'] == 'unitless'
+
+    # Conflicting unit types for a shared acronym raise a clear error
+    # that names both the conflicting and the first registering demand
+    # name.
+    with pytest.raises(
+        ValueError,
+        match=(
+            'Conflicting unit types.*`STR`.*`Peak Story Torsion Ratio`'
+            '.*`Story Torsion Ratio`'
+        ),
+    ):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Story Torsion Ratio': {
+                        'Acronym': 'STR',
+                        'UnitType': 'unitless',
+                    },
+                    'Peak Story Torsion Ratio': {
+                        'Acronym': 'STR',
+                        'UnitType': 'rotation',
+                    },
+                }
+            }
+        )
+
+    # A custom entry may also conflict with a default entry that
+    # shares the acronym; the error names the default demand name that
+    # first registered the acronym.
+    with pytest.raises(
+        ValueError,
+        match=(
+            'Conflicting unit types.*`PID`.*`Podium Interface Displacement`'
+            '.*`Story Drift Ratio`'
+        ),
+    ):
+        base.Options(
+            {
+                'CustomDemandTypes': {
+                    'Podium Interface Displacement': {
+                        'Acronym': 'PID',
+                        'UnitType': 'displacement',
+                    }
+                }
+            }
+        )
 
 
 def test_logger_init() -> None:
