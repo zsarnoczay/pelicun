@@ -47,7 +47,7 @@ import os
 import sys
 from pathlib import Path
 from time import gmtime, strftime
-from typing import Hashable
+from typing import TYPE_CHECKING
 
 import colorama
 import jsonschema
@@ -72,6 +72,9 @@ from pelicun.base import (
 )
 from pelicun.file_io import resolve_default_dataset_path
 from pelicun.pelicun_warnings import PelicunInvalidConfigError
+
+if TYPE_CHECKING:
+    from collections.abc import Hashable
 
 colorama.init()
 sys.path.insert(0, Path(__file__).resolve().parent.absolute().as_posix())

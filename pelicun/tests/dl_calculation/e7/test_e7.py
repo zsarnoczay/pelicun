@@ -40,12 +40,15 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
 
 # import pandas as pd
 from pelicun.tools.DL_calculation import run_pelicun
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 @pytest.fixture

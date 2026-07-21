@@ -104,10 +104,13 @@ def test_save_to_csv() -> None:
 
     # units given, without unit conversion factors
     filepath = Path(tmpdir) / 'foo.csv'
-    with pytest.raises(
-        ValueError,
-        match='When `units` is not None, `unit_conversion_factors` must be provided.',
-    ), tempfile.TemporaryDirectory() as tmpdir:
+    with (
+        pytest.raises(
+            ValueError,
+            match='When `units` is not None, `unit_conversion_factors` must be provided.',
+        ),
+        tempfile.TemporaryDirectory() as tmpdir,
+    ):
         file_io.save_to_csv(
             data, filepath, units, unit_conversion_factors=None, orientation=0
         )
@@ -116,10 +119,13 @@ def test_save_to_csv() -> None:
 
     # not csv extension
     filepath = Path(tmpdir) / 'foo.xyz'
-    with pytest.raises(
-        ValueError,
-        match=('Please use the `.csv` file extension. Received file name is '),
-    ), tempfile.TemporaryDirectory() as tmpdir:
+    with (
+        pytest.raises(
+            ValueError,
+            match=('Please use the `.csv` file extension. Received file name is '),
+        ),
+        tempfile.TemporaryDirectory() as tmpdir,
+    ):
         file_io.save_to_csv(
             data, filepath, units, unit_conversion_factors, orientation=0
         )

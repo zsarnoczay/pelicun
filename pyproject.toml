@@ -94,9 +94,9 @@ exclude = ["doc_src*"]
 
 [tool.ruff]
 line-length = 85
-# Keep lint behavior as it was before `requires-python` was added Bumping this
-# activates UP035 and others on existing code.
-target-version = "py38"
+# Tracks `requires-python`; kept explicit so rule changes stay deliberate when
+# the floor moves.
+target-version = "py39"
 exclude = [
   "rulesets",
   "examples",

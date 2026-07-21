@@ -18,6 +18,9 @@
 # incomplete features
 /pelicun/lab.py
 
+# virtual environments
+/.venv*/
+
 # coverage
 .coverage
 

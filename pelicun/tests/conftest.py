@@ -39,10 +39,13 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 def _setup_common_test_data() -> Path:
