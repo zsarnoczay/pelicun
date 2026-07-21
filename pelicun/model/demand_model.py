@@ -1280,6 +1280,9 @@ def _get_required_demand_type(  # noqa: C901
 
     Raises
     ------
+    KeyError
+        When a demand type in the model parameters is not part of the
+        demand-type vocabulary in `edp_to_demand_type`.
     ValueError
         When a negative value is used for `loc`. Currently not
         supported.
@@ -1346,19 +1349,28 @@ def _get_required_demand_type(  # noqa: C901
                 # If there is a subtype, split the demand_type string
                 # on the '|' character
                 demand_type, subtype = demand_type.split('|')
-                # Convert the demand type to the corresponding EDP
-                # type using `edp_to_demand_type`
-                demand_type = edp_to_demand_type[demand_type]
-                # Concatenate the demand type and subtype to form the
-                # EDP type
-                edp_type = f'{demand_type}_{subtype}'
             else:
-                # If there is no subtype, convert the demand type to
-                # the corresponding EDP type using
-                # `edp_to_demand_type`
-                demand_type = edp_to_demand_type[demand_type]
-                # Assign the EDP type to be equal to the demand type
-                edp_type = demand_type
+                subtype = None
+
+            # Convert the demand type to the corresponding EDP type
+            # using `edp_to_demand_type`
+            if demand_type not in edp_to_demand_type:
+                msg = (
+                    f'Unable to convert the demand type `{demand_type}`, '
+                    f'required by component `{cmp}`, to a demand-type '
+                    f'acronym: `{demand_type}` is not part of the '
+                    f'demand-type vocabulary of this assessment. If it '
+                    f'is a custom demand type, please register it '
+                    f'through the `CustomDemandTypes` option.'
+                )
+                raise KeyError(msg)
+            demand_type = edp_to_demand_type[demand_type]
+
+            # Concatenate the demand type and subtype (if any) to form
+            # the EDP type
+            edp_type = (
+                f'{demand_type}_{subtype}' if subtype is not None else demand_type
+            )
 
             # Consider the default offset, if needed
             if demand_type in demand_offset:

@@ -234,6 +234,18 @@ def test_substitute_default_path_legacy_names() -> None:
     with pytest.raises(KeyError, match='not recognized'):
         file_io.substitute_default_path(['PelicunDefault/some_file.csv'])
 
+    # legacy-prefixed filenames that are not preserved for backwards
+    # compatibility raise an error that lists the valid legacy names
+    # and points at the modern method/model-type format
+    with pytest.raises(
+        KeyError,
+        match=(
+            'not one of the legacy filenames preserved for backwards '
+            'compatibility'
+        ),
+    ):
+        file_io.substitute_default_path(['PelicunDefault/damage_DB_bogus.csv'])
+
 
 def test_resolve_default_dataset_path() -> None:
     # method aliases resolve to the dataset's folder

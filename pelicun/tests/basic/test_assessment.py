@@ -41,9 +41,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
 import pytest
 
 from pelicun import assessment
+from pelicun.base import ensure_value
 from pelicun.pelicun_warnings import PelicunWarning
 
 
@@ -105,6 +110,106 @@ def test_assessment_get_default_metadata() -> None:
         for model_type in ['fragility', 'consequence_repair']:
             asmt.get_default_data(method_name, model_type)
             asmt.get_default_metadata(method_name, model_type)
+
+
+def test_load_consequence_info_legacy_name() -> None:
+    # <backwards compatibility>
+    # Legacy consequence-database filenames trigger a deprecation
+    # warning and resolve to the corresponding method's dataset.
+    asmt = assessment.DLCalculationAssessment({})
+    with pytest.warns(PelicunWarning, match='no longer referenced'):
+        conseq_df, consequence_db = asmt.load_consequence_info(
+            'loss_repair_DB_Hazus_EQ_bldg.csv'
+        )
+
+    assert len(consequence_db) == 1
+    assert Path(consequence_db[0]).is_file()
+    assert Path(consequence_db[0]).name == 'consequence_repair.csv'
+    assert not conseq_df.empty
+
+    # the loaded data matches what the modern method-name form provides
+    asmt_modern = assessment.DLCalculationAssessment({})
+    conseq_df_modern, consequence_db_modern = asmt_modern.load_consequence_info(
+        'Hazus Earthquake - Buildings'
+    )
+    assert consequence_db == consequence_db_modern
+    pd.testing.assert_frame_equal(conseq_df, conseq_df_modern)
+
+
+def test_calculate_damage_collapse_fragility_custom_demand_type() -> None:
+    # The collapse-fragility demand lookup in `calculate_damage`
+    # resolves demand-type acronyms through the assessment-scoped
+    # vocabulary, so it recognizes demand types registered through the
+    # `CustomDemandTypes` option.
+    sample_size = 3
+
+    def prepare_assessment(
+        config: dict | None,
+    ) -> assessment.DLCalculationAssessment:
+        asmt = assessment.DLCalculationAssessment(config)
+        asmt.stories = 1
+
+        # demand sample with the custom `STR` demand type
+        demand_sample = pd.DataFrame(
+            np.full((sample_size, 1), 0.06),
+            columns=pd.MultiIndex.from_tuples(
+                [('STR', '0', '1')], names=['type', 'loc', 'dir']
+            ),
+        )
+        units_row = pd.DataFrame(
+            'rad', index=['Units'], columns=demand_sample.columns, dtype=object
+        )
+        asmt.demand.load_sample(pd.concat([demand_sample, units_row]))
+
+        # the global collapse component
+        cmp_marginals = pd.DataFrame(
+            {
+                'Units': ['ea'],
+                'Location': ['0'],
+                'Direction': ['1'],
+                'Theta_0': [1],
+            },
+            index=['collapse'],
+        )
+        asmt.asset.load_cmp_model({'marginals': cmp_marginals})
+        asmt.asset.generate_cmp_sample(sample_size)
+        return asmt
+
+    collapse_fragility = {
+        'DemandType': 'STR',
+        'CapacityDistribution': None,
+        'CapacityMedian': 0.04,
+        'Theta_1': None,
+    }
+
+    asmt = prepare_assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+    asmt.calculate_damage(
+        length_unit='in',
+        component_database='None',
+        collapse_fragility=collapse_fragility,
+    )
+
+    # the custom acronym resolved to the registered demand name
+    damage_params = ensure_value(asmt.damage.ds_model.damage_params)
+    assert damage_params.loc['collapse', ('Demand', 'Type')] == (
+        'Story Torsion Ratio'
+    )
+
+    # the 0.06 rad demand exceeds the deterministic 0.04 rad collapse
+    # capacity in every realization
+    ds_sample = ensure_value(asmt.damage.ds_model.sample)
+    assert (ds_sample['collapse'] == 1).all().all()
+
+    # without the custom entry, the acronym is not recognized
+    asmt_default = prepare_assessment(None)
+    with pytest.raises(
+        ValueError, match='valid demand type acronym was not provided'
+    ):
+        asmt_default.calculate_damage(
+            length_unit='in',
+            component_database='None',
+            collapse_fragility=collapse_fragility,
+        )
 
 
 def test_assessment_calc_unit_scale_factor() -> None:

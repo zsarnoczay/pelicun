@@ -51,6 +51,7 @@ import pandas as pd
 import pytest
 
 from pelicun import file_io, model, uq
+from pelicun.assessment import Assessment
 from pelicun.base import ensure_value
 from pelicun.model.loss_model import (
     LossModel,
@@ -63,7 +64,8 @@ from pelicun.pelicun_warnings import PelicunWarning
 from pelicun.tests.basic.test_pelicun_model import TestPelicunModel
 
 if TYPE_CHECKING:
-    from pelicun.assessment import Assessment
+    from pathlib import Path
+
     from pelicun.model.asset_model import AssetModel
 
 
@@ -478,6 +480,59 @@ class TestLossModel(TestPelicunModel):
         assert lower <= l_comb <= higher
         assert l2 == combination_array[0, 4]
         assert combination_array[8, 0] <= l1 <= combination_array[9, 0]
+
+    def test_loss_function_custom_demand_type(self, tmp_path: Path) -> None:
+        # A loss-function calculation driven by a custom demand type
+        # registered through the `CustomDemandTypes` option: the loss
+        # model resolves demand types through the assessment-scoped
+        # vocabulary.
+        sample_size = 5
+        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+
+        # demand sample with the custom `STR` demand type
+        demand_sample = pd.DataFrame(
+            np.full((sample_size, 1), 0.06),
+            columns=pd.MultiIndex.from_tuples(
+                [('STR', '0', '1')], names=['type', 'loc', 'dir']
+            ),
+        )
+        units_row = pd.DataFrame(
+            'rad', index=['Units'], columns=demand_sample.columns, dtype=object
+        )
+        asmnt.demand.load_sample(pd.concat([demand_sample, units_row]))
+
+        # one component, with losses driven by the custom demand type
+        asmnt.asset.cmp_marginal_params = pd.DataFrame(
+            {'Theta_0': (1.0,)},
+            index=pd.MultiIndex.from_tuples(
+                (('torsion.comp', '0', '1', '0'),),
+                names=('cmp', 'loc', 'dir', 'uid'),
+            ),
+        )
+        asmnt.asset.generate_cmp_sample(sample_size)
+
+        # no damage estimation needed since we only use loss functions
+
+        # loss function keyed to the custom demand type
+        loss_db_path = tmp_path / 'loss_function_custom_demand_type.csv'
+        loss_db_path.write_text(
+            'ID,Incomplete,Demand-Type,Demand-Unit,Demand-Offset,'
+            'Demand-Directional,DV-Unit,LossFunction-Theta_0\n'
+            'torsion.comp-Cost,0,Story Torsion Ratio,rad,0,1,'
+            'loss_ratio,"0.00,1.00|0.00,0.12"\n',
+            encoding='utf-8',
+        )
+        asmnt.loss.decision_variables = ('Cost',)
+        asmnt.loss.add_loss_map(loss_map_policy='fill')
+        asmnt.loss.load_model_parameters([str(loss_db_path)])
+
+        asmnt.loss.calculate()
+
+        # the 0.06 rad demand maps to a loss ratio of 0.5 on the
+        # multilinear loss function in every realization
+        lf_sample = ensure_value(asmnt.loss.lf_model.sample)
+        assert lf_sample.shape == (sample_size, 1)
+        assert np.allclose(lf_sample.to_numpy(), 0.5)
 
     def test_aggregate_losses_thresholds(
         self, loss_model_with_ones: LossModel

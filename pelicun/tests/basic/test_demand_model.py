@@ -635,7 +635,13 @@ class TestDemandModel(TestModelModule):  # noqa: PLR0904
         asmnt_default.damage.load_model_parameters(
             [damage_db_path], {'testing.component'}
         )
-        with pytest.raises(KeyError, match='Story Torsion Ratio'):
+        with pytest.raises(
+            KeyError,
+            match=(
+                'Unable to convert the demand type `Story Torsion Ratio`, '
+                'required by component `testing.component`'
+            ),
+        ):
             _get_required_demand_type(
                 ensure_value(asmnt_default.damage.ds_model.damage_params),
                 pgb,

@@ -1512,18 +1512,35 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
+                    # Legacy inputs provide a filename instead of a
+                    # method name. `substitute_default_path` recognizes
+                    # such filenames, emits a deprecation warning, and
+                    # maps them to the corresponding method and model
+                    # type.
                     consequence_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
-                    dataset_path = Path(consequence_db_path).parent
-                else:
-                    # Not every method provides consequence models, so
-                    # resolve the method's dataset folder and check for
-                    # the file there.
-                    dataset_path = file_io.resolve_default_dataset_path(method_name)
-                    consequence_db_path = str(
-                        dataset_path / 'consequence_repair.csv'
+
+                    consequence_db.append(consequence_db_path)
+
+                    legacy_conseq_df = file_io.load_data(
+                        consequence_db_path,
+                        unit_conversion_factors=None,
+                        orientation=1,
+                        reindex=False,
+                        log=self.log,
                     )
+                    assert isinstance(legacy_conseq_df, pd.DataFrame)
+
+                    conseq_df = pd.concat([conseq_df, legacy_conseq_df])
+
+                    continue
+
+                # Not every method provides consequence models, so
+                # resolve the method's dataset folder and check for
+                # the file there.
+                dataset_path = file_io.resolve_default_dataset_path(method_name)
+                consequence_db_path = str(dataset_path / 'consequence_repair.csv')
 
                 if Path(consequence_db_path).is_file():
                     consequence_db.append(consequence_db_path)

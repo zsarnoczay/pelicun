@@ -520,7 +520,22 @@ def substitute_default_path(  # noqa: C901
                         'documentation for more details.'
                     )
 
-                method_name = legacy_names[file_name.split('.')[0]]
+                legacy_name = file_name.split('.')[0]
+                if legacy_name not in legacy_names:
+                    msg = (
+                        f'Default data path `{data_path}` uses the legacy '
+                        f'placeholder-filename format, but `{legacy_name}` '
+                        f'is not one of the legacy filenames preserved '
+                        f'for backwards compatibility: '
+                        f'{", ".join(sorted(legacy_names))}. '
+                        f'Please refer to default model data with a '
+                        f'combination of a specific method and data type '
+                        f'instead, such as '
+                        f'`PelicunDefault/FEMA P-58/fragility.csv`.'
+                    )
+                    raise KeyError(msg)
+
+                method_name = legacy_names[legacy_name]
                 if file_name.startswith(('fragility', 'damage')):
                     data_type = 'fragility'
                 else:
