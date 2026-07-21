@@ -2585,7 +2585,10 @@ class RepairModel_LF(RepairModel_Base):
 
         required_edps = base.invert_mapping(
             _get_required_demand_type(
-                self.loss_params, performance_group, demand_offset
+                self.loss_params,
+                performance_group,
+                demand_offset,
+                self._asmnt.options.edp_to_demand_type,
             )
         )
 

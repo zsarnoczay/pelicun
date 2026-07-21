@@ -56,6 +56,7 @@ import colorama
 import numpy as np
 import pandas as pd
 from colorama import Fore, Style
+from dlml import vocabulary
 from scipy.interpolate import interp1d  # type: ignore
 
 from pelicun.pelicun_warnings import PelicunWarning
@@ -142,6 +143,16 @@ class Options:
         configuration dictionary, otherwise left as provided in the
         default configuration file (see settings/default_config.json
         in the pelicun source code).
+    edp_to_demand_type: dict
+        Maps the verbose demand names used in model parameters
+        (e.g., 'Story Drift Ratio') to short demand-type acronyms
+        (e.g., 'PID'). The mapping starts from the defaults in
+        `base.EDP_to_demand_type` and is extended with the entries
+        of the "CustomDemandTypes" dictionary in the user's
+        configuration dictionary, which map custom demand names to
+        custom acronyms and may also override the defaults. The
+        merged mapping only applies to assessments using this
+        Options object.
     log: Logger
         Logger object. Configuration parameters coming from the user's
         configuration dictionary or the default configuration file
@@ -156,11 +167,9 @@ class Options:
         'defaults',
         'demand_offset',
         'eco_scale',
-        'eco_scale',
-        'error_setup',
+        'edp_to_demand_type',
         'error_setup',
         'list_all_ds',
-        'log',
         'log',
         'nondir_multi_dict',
         'rho_cost_time',
@@ -186,6 +195,15 @@ class Options:
             object. If it is not intended to use this Options object
             for an Assessment (e.g. defining an Options object for UQ
             use), this value should be None.
+
+        Raises
+        ------
+        TypeError
+            If an entry of the "CustomDemandTypes" configuration
+            dictionary has a non-string key or value.
+        ValueError
+            If an entry of the "CustomDemandTypes" configuration
+            dictionary has an empty key or value.
 
         """
         self._asmnt = assessment
@@ -216,6 +234,40 @@ class Options:
             log_show_ms=merged_config_options['LogShowMS'],
             print_log=merged_config_options['PrintLog'],
         )
+
+        # Build the assessment-scoped demand-type vocabulary: the
+        # defaults in `EDP_to_demand_type` extended with the entries
+        # of the "CustomDemandTypes" option. Custom entries may
+        # override the defaults.
+        custom_demand_types = merged_config_options['CustomDemandTypes']
+        for demand_name, demand_type in custom_demand_types.items():
+            if not isinstance(demand_name, str) or not isinstance(demand_type, str):
+                msg = (
+                    f'Invalid entry in "CustomDemandTypes": '
+                    f'{demand_name!r}: {demand_type!r}. '
+                    f'Keys and values must be strings.'
+                )
+                raise TypeError(msg)
+            if not demand_name or not demand_type:
+                msg = (
+                    f'Invalid entry in "CustomDemandTypes": '
+                    f'{demand_name!r}: {demand_type!r}. '
+                    f'Keys and values must not be empty.'
+                )
+                raise ValueError(msg)
+            default_demand_type = EDP_to_demand_type.get(demand_name)
+            if default_demand_type is not None and (
+                default_demand_type != demand_type
+            ):
+                self.log.msg(
+                    f'"CustomDemandTypes" overrides the default demand '
+                    f'type of `{demand_name}`: '
+                    f'`{default_demand_type}` -> `{demand_type}`.'
+                )
+        self.edp_to_demand_type: dict[str, str] = {
+            **EDP_to_demand_type,
+            **custom_demand_types,
+        }
 
     @property
     def seed(self) -> float | None:
@@ -1308,47 +1360,13 @@ def dedupe_index(dataframe: pd.DataFrame, dtype: type = str) -> pd.DataFrame:
 
 # Input specs
 
-EDP_to_demand_type = {
-    # Drifts
-    'Story Drift Ratio': 'PID',
-    'Peak Interstory Drift Ratio': 'PID',
-    'Roof Drift Ratio': 'PRD',
-    'Peak Roof Drift Ratio': 'PRD',
-    'Damageable Wall Drift': 'DWD',
-    'Racking Drift Ratio': 'RDR',
-    'Mega Drift Ratio': 'PMD',
-    'Residual Drift Ratio': 'RID',
-    'Residual Interstory Drift Ratio': 'RID',
-    'Peak Effective Drift Ratio': 'EDR',
-    # Floor response
-    'Peak Floor Acceleration': 'PFA',
-    'Peak Floor Velocity': 'PFV',
-    'Peak Floor Displacement': 'PFD',
-    # Component response
-    'Peak Link Rotation Angle': 'LR',
-    'Peak Link Beam Chord Rotation': 'LBR',
-    # Wind Intensity
-    'Peak Gust Wind Speed': 'PWS',
-    # Wind Demands
-    'Peak Wind Force': 'PWF',
-    'Peak Internal Force': 'PIF',
-    'Peak Line Force': 'PLF',
-    'Peak Wind Pressure': 'PWP',
-    # Inundation Intensity
-    'Peak Inundation Height': 'PIH',
-    # Shaking Intensity
-    'Peak Ground Acceleration': 'PGA',
-    'Peak Ground Velocity': 'PGV',
-    'Spectral Acceleration': 'SA',
-    'Spectral Velocity': 'SV',
-    'Spectral Displacement': 'SD',
-    'Peak Spectral Acceleration': 'SA',
-    'Peak Spectral Velocity': 'SV',
-    'Peak Spectral Displacement': 'SD',
-    'Permanent Ground Deformation': 'PGD',
-    # Placeholder for advanced calculations
-    'One': 'ONE',
-}
+# The demand-type vocabulary is owned by the Damage and Loss Model
+# Library (the `dlml` package), which is the single source of truth for
+# the controlled vocabularies used in the default model data. Pelicun
+# keeps its own copy of the vocabulary. This dictionary provides the defaults
+# for every new Options object; use the `CustomDemandTypes` option to extend
+# the vocabulary for a specific assessment.
+EDP_to_demand_type: dict[str, str] = dict(vocabulary.EDP_to_demand_type)
 
 
 def dict_raise_on_duplicates(ordered_pairs: list[tuple]) -> dict:

@@ -104,8 +104,7 @@ exclude = [
   ".venv*",
   "pelicun/tests/dl_calculation/e7/auto_HU_NJ.py",
   "pelicun/tests/dl_calculation/e8/auto_HU_LA.py",
-  "pelicun/tests/dl_calculation/e9/custom_pop.py",
-  "pelicun/resources/DamageAndLossModelLibrary/"
+  "pelicun/tests/dl_calculation/e9/custom_pop.py"
 ]
 
 [tool.ruff.lint]
@@ -176,8 +175,7 @@ skip = [
   "*/SimCenterDBDL/*",
   "auto_HU_NJ.py",
   "auto_HU_LA.py",
-  "custom_pop.py",
-  "*/resources/DamageAndLossModelLibrary/*"]
+  "custom_pop.py"]
 
 [tool.pytest.ini_options]
 # Block network access in tests (pytest-socket). Unix domain sockets stay
@@ -197,5 +195,4 @@ addopts = "--disable-socket --allow-unix-socket"
 [tool.mypy]
 ignore_missing_imports = true
 
-exclude = ".*/resources/DamageAndLossModelLibrary/.*"
 namespace_packages = false

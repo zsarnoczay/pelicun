@@ -556,6 +556,12 @@
             "DemandOffset": {
               "type": "object"
             },
+            "CustomDemandTypes": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
             "ListAllDamageStates": {
               "type": "boolean"
             },

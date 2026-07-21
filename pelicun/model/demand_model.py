@@ -1223,10 +1223,11 @@ class DemandModel(PelicunModel):
         )
 
 
-def _get_required_demand_type(
+def _get_required_demand_type(  # noqa: C901
     model_parameters: pd.DataFrame,
     pgb: pd.DataFrame,
     demand_offset: dict | None = None,
+    edp_to_demand_type: dict[str, str] | None = None,
 ) -> dict:
     """
     Get the required demand type for the components.
@@ -1260,6 +1261,14 @@ def _get_required_demand_type(
         Specifies an additional location offset for specific
         demand types. Example:
         {'PFA': -1, 'PFV': +2}.
+    edp_to_demand_type: dict, optional
+        Maps the verbose demand names used in the model parameters
+        (e.g., 'Story Drift Ratio') to short demand-type acronyms
+        (e.g., 'PID'). When an assessment is available, pass its
+        `options.edp_to_demand_type` mapping, which also includes
+        the custom demand types defined for that assessment. When
+        None, the default vocabulary in `base.EDP_to_demand_type`
+        is used.
 
     Returns
     -------
@@ -1281,6 +1290,10 @@ def _get_required_demand_type(
     # Assign default demand_offset to empty dict.
     if not demand_offset:
         demand_offset = {}
+
+    # Fall back to the default demand-type vocabulary.
+    if edp_to_demand_type is None:
+        edp_to_demand_type = base.EDP_to_demand_type
 
     required_edps = defaultdict(list)
 
@@ -1334,16 +1347,16 @@ def _get_required_demand_type(
                 # on the '|' character
                 demand_type, subtype = demand_type.split('|')
                 # Convert the demand type to the corresponding EDP
-                # type using `base.EDP_to_demand_type`
-                demand_type = base.EDP_to_demand_type[demand_type]
+                # type using `edp_to_demand_type`
+                demand_type = edp_to_demand_type[demand_type]
                 # Concatenate the demand type and subtype to form the
                 # EDP type
                 edp_type = f'{demand_type}_{subtype}'
             else:
                 # If there is no subtype, convert the demand type to
                 # the corresponding EDP type using
-                # `base.EDP_to_demand_type`
-                demand_type = base.EDP_to_demand_type[demand_type]
+                # `edp_to_demand_type`
+                demand_type = edp_to_demand_type[demand_type]
                 # Assign the EDP type to be equal to the demand type
                 edp_type = demand_type
 

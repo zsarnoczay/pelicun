@@ -53,6 +53,7 @@ import warnings
 
 import numpy as np
 import pytest
+from dlml import vocabulary
 from scipy.stats import (
     lognorm,  # type: ignore
     norm,  # type: ignore
@@ -1829,6 +1830,22 @@ def test_rv_class_map() -> None:
         ValueError, match=re.escape('Unsupported distribution: <unsupported>')
     ):
         uq.rv_class_map('<unsupported>')
+
+
+def test_rv_class_map_supports_dlml_vocabulary() -> None:
+    # The Damage and Loss Model Library (the `dlml` package) owns the
+    # controlled vocabulary of distribution families that the default
+    # model data may declare. Every family in that vocabulary must map
+    # to a random variable class here, otherwise data that is valid for
+    # the library could not be used in models in pelicun. This test guards
+    # against vocabulary drift between the two packages.
+    for family in vocabulary.DISTRIBUTION_FAMILIES:
+        rv_class = uq.rv_class_map(family)
+        assert isinstance(rv_class, type)
+        assert issubclass(rv_class, (uq.RandomVariable, uq.UtilityRandomVariable))
+
+    # An unspecified family defaults to a deterministic variable.
+    assert uq.rv_class_map(np.nan) is uq.rv_class_map('deterministic')
 
 
 if __name__ == '__main__':

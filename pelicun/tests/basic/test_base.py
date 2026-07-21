@@ -119,6 +119,39 @@ def test_nondir_multi() -> None:
     assert options.nondir_multi_dict == {'PFA': 1.5, 'PFV': 1.0, 'ALL': 1.2}
 
 
+def test_options_custom_demand_types() -> None:
+    # Without the option, the assessment-scoped mapping matches the
+    # module-level defaults but is an independent copy.
+    options = base.Options({})
+    assert options.edp_to_demand_type == base.EDP_to_demand_type
+    assert options.edp_to_demand_type is not base.EDP_to_demand_type
+
+    # Custom entries extend the defaults.
+    options = base.Options({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+    assert options.edp_to_demand_type['Story Torsion Ratio'] == 'STR'
+    assert options.edp_to_demand_type['Story Drift Ratio'] == 'PID'
+    assert len(options.edp_to_demand_type) == len(base.EDP_to_demand_type) + 1
+    # The module-level defaults are unaffected.
+    assert 'Story Torsion Ratio' not in base.EDP_to_demand_type
+
+    # Custom entries may override the defaults.
+    options = base.Options({'CustomDemandTypes': {'Story Drift Ratio': 'SDR'}})
+    assert options.edp_to_demand_type['Story Drift Ratio'] == 'SDR'
+    assert base.EDP_to_demand_type['Story Drift Ratio'] == 'PID'
+
+    # Invalid entries raise clear errors.
+    with pytest.raises(TypeError, match='must be strings'):
+        base.Options({'CustomDemandTypes': {1: 'STR'}})
+    with pytest.raises(TypeError, match='must be strings'):
+        base.Options({'CustomDemandTypes': {'Story Torsion Ratio': 1}})
+    with pytest.raises(ValueError, match='must not be empty'):
+        base.Options({'CustomDemandTypes': {'': 'STR'}})
+    with pytest.raises(ValueError, match='must not be empty'):
+        base.Options({'CustomDemandTypes': {'Story Torsion Ratio': ''}})
+    with pytest.raises(ValueError, match='should map to a dictionary'):
+        base.Options({'CustomDemandTypes': 'STR'})
+
+
 def test_logger_init() -> None:
     # Test that the Logger object is initialized with the correct
     # attributes based on the input configuration

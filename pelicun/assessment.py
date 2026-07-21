@@ -48,10 +48,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from dlml import __version__ as dlml_version
 
 from pelicun import base, file_io, model, uq
 from pelicun.__init__ import __version__ as pelicun_version  # type: ignore
-from pelicun.base import EDP_to_demand_type, get
+from pelicun.base import get
 
 if TYPE_CHECKING:
     from pelicun.base import Logger
@@ -118,7 +119,7 @@ class AssessmentBase:
 
         self.log: Logger = self.options.log
         self.log.msg(
-            f'pelicun {pelicun_version} | \n',
+            f'pelicun {pelicun_version} | \nDLML {dlml_version} | \n',
             prepend_timestamp=False,
             prepend_blank_space=False,
         )
@@ -1042,7 +1043,8 @@ class DLCalculationAssessment(AssessmentBase):
                 coll_dem_spec = None
 
             coll_dem_name = None
-            for demand_name, demand_short in EDP_to_demand_type.items():
+            edp_to_demand_type = self.options.edp_to_demand_type
+            for demand_name, demand_short in edp_to_demand_type.items():
                 if demand_short == coll_dem:
                     coll_dem_name = demand_name
                     break

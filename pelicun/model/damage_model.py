@@ -826,7 +826,10 @@ class DamageModel_DS(DamageModel_Base):
             demand_offset = self._asmnt.options.demand_offset
             assert self.damage_params is not None
             required_edps = _get_required_demand_type(
-                self.damage_params, performance_group, demand_offset
+                self.damage_params,
+                performance_group,
+                demand_offset,
+                self._asmnt.options.edp_to_demand_type,
             )
 
             available_edps = (

@@ -11,6 +11,17 @@ Added
 and to the package classifiers, and the package now declares
 ``requires-python >= 3.9`` explicitly.
 
+**Custom Demand Types**: The new ``CustomDemandTypes`` option
+registers custom entries in the demand-type vocabulary of an
+assessment, e.g.,
+``{"Options": {"CustomDemandTypes": {"Story Torsion Ratio": "STR"}}}``.
+Entries map verbose demand names to short acronyms, extending the
+default vocabulary and, if a default name is reused, overriding its
+acronym. The custom entries only apply to assessments configured with
+them. This replaces the former practice of editing
+``EDP_to_demand_type`` in ``pelicun/base.py``, which stopped working
+when the vocabulary moved to the model library.
+
 Changed
 -------
 
@@ -40,6 +51,29 @@ a regular pip-installed dependency of pelicun.
   mixed separators (e.g., ``PelicunDefault/FEMA P-58\fragility.csv``,
   common in configs written on Windows) are accepted on all
   platforms.
+- ``auto_populate`` now also accepts ``PelicunDefault/`` auto script
+  paths directly (e.g., ``PelicunDefault/Hazus Earthquake -
+  Buildings/pelicun_config.py``), resolving them to the corresponding
+  script in the installed package.
+- ``auto_populate`` now caches a loaded auto script and reuses it
+  when the same script is requested again under the same identifier
+  (e.g., in the per-building loop of a regional simulation), instead
+  of re-executing it on every call. Module-level state in an auto
+  script now persists across those calls — enabling one-time setup
+  work and cross-asset caching — but scripts must not assume a fresh
+  re-initialization on every call.
+- The demand-type vocabulary (``EDP_to_demand_type``) is now imported
+  from the ``simcenter-dlml`` package, making the model library the
+  single source of truth for the controlled vocabularies used in the
+  model data. Pelicun keeps its own copy of the vocabulary in
+  ``base.EDP_to_demand_type``, so runtime modifications of that
+  dictionary remain pelicun-scoped; use the new ``CustomDemandTypes``
+  option to extend the vocabulary of an assessment.
+
+**Model-Library Version in Assessment Logs**: Assessment logs now
+record the version of the installed model-library package (``DLML``)
+next to the pelicun version, so every log documents which
+model-library version produced the results.
 
 **Network Access Blocked in Tests**: The test suite now blocks
 network access by default through pytest-socket

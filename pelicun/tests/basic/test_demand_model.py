@@ -46,12 +46,12 @@ import warnings
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from pelicun.assessment import Assessment
 from pelicun.base import ensure_value
 from pelicun.model.demand_model import (
     DemandModel,
@@ -59,9 +59,6 @@ from pelicun.model.demand_model import (
     _get_required_demand_type,
 )
 from pelicun.tests.basic.test_model import TestModelModule
-
-if TYPE_CHECKING:
-    from pelicun.assessment import Assessment
 
 
 class TestDemandModel(TestModelModule):  # noqa: PLR0904
@@ -593,6 +590,101 @@ class TestDemandModel(TestModelModule):  # noqa: PLR0904
             },
         )
         assert required == expected
+
+    @staticmethod
+    def _write_custom_demand_type_damage_db(tmp_path: Path) -> str:
+        # Damage model parameters for a component sensitive to a
+        # custom demand type, with a deterministic capacity.
+        damage_db_path = tmp_path / 'damage_db_custom_demand_type.csv'
+        damage_db_path.write_text(
+            'ID,Incomplete,Demand-Type,Demand-Unit,Demand-Offset,'
+            'Demand-Directional,LS1-Family,LS1-Theta_0\n'
+            'testing.component,0,Story Torsion Ratio,rad,0,1,,0.04\n',
+            encoding='utf-8',
+        )
+        return str(damage_db_path)
+
+    def test__get_required_demand_type_custom_demand_type(
+        self, tmp_path: Path
+    ) -> None:
+        # A custom demand type registered through the
+        # `CustomDemandTypes` option is resolved through the same code
+        # path that handles the default demand-type vocabulary.
+        damage_db_path = self._write_custom_demand_type_damage_db(tmp_path)
+        pgb = pd.DataFrame(
+            {('testing.component', '1', '1', '1'): [1]}, index=['Blocks']
+        ).T.rename_axis(index=['cmp', 'loc', 'dir', 'uid'])
+
+        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+        asmnt.damage.load_model_parameters([damage_db_path], {'testing.component'})
+        required = _get_required_demand_type(
+            ensure_value(asmnt.damage.ds_model.damage_params),
+            pgb,
+            asmnt.options.demand_offset,
+            asmnt.options.edp_to_demand_type,
+        )
+        expected = defaultdict(
+            list,
+            {(('STR-1-1',), None): [('testing.component', '1', '1', '1')]},
+        )
+        assert required == expected
+
+        # An assessment without custom demand types is unaffected: it
+        # only recognizes the default vocabulary.
+        asmnt_default = Assessment()
+        asmnt_default.damage.load_model_parameters(
+            [damage_db_path], {'testing.component'}
+        )
+        with pytest.raises(KeyError, match='Story Torsion Ratio'):
+            _get_required_demand_type(
+                ensure_value(asmnt_default.damage.ds_model.damage_params),
+                pgb,
+                asmnt_default.options.demand_offset,
+                asmnt_default.options.edp_to_demand_type,
+            )
+
+    def test_custom_demand_type_damage_calculation(self, tmp_path: Path) -> None:
+        # End-to-end: a damage calculation driven by a custom demand
+        # type registered through the `CustomDemandTypes` option.
+        sample_size = 5
+        asmnt = Assessment({'CustomDemandTypes': {'Story Torsion Ratio': 'STR'}})
+        asmnt.stories = 1
+
+        # Demand sample with the custom `STR` demand type.
+        demand_sample = pd.DataFrame(
+            np.full((sample_size, 1), 0.06),
+            columns=pd.MultiIndex.from_tuples(
+                [('STR', '1', '1')], names=['type', 'loc', 'dir']
+            ),
+        )
+        units_row = pd.DataFrame(
+            'rad', index=['Units'], columns=demand_sample.columns, dtype=object
+        )
+        asmnt.demand.load_sample(pd.concat([demand_sample, units_row]))
+
+        # One component, sensitive to the custom demand type.
+        cmp_marginals = pd.DataFrame(
+            {
+                'Units': ['ea'],
+                'Location': ['1'],
+                'Direction': ['1'],
+                'Theta_0': [1],
+            },
+            index=['testing.component'],
+        )
+        asmnt.asset.load_cmp_model({'marginals': cmp_marginals})
+        asmnt.asset.generate_cmp_sample(sample_size)
+
+        asmnt.damage.load_model_parameters(
+            [self._write_custom_demand_type_damage_db(tmp_path)],
+            {'testing.component'},
+        )
+        asmnt.damage.calculate()
+
+        # The 0.06 rad demand exceeds the deterministic 0.04 rad
+        # capacity in every realization: all blocks reach DS1.
+        ds_sample = ensure_value(asmnt.damage.ds_model.sample)
+        assert (ds_sample['testing.component'] == 1).all().all()
 
     def test__assemble_required_demand_data(
         self, assessment_instance: Assessment

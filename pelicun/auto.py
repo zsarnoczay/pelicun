@@ -47,7 +47,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pelicun import base
+from pelicun import file_io
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -79,8 +79,14 @@ def auto_populate(
     auto_script_path: str
         The path pointing to a Python script with the auto-population
         rules. Built-in scripts can be referenced using the
-        'PelicunDefault/XY' format where 'XY' is the name of the
-        script.
+        'PelicunDefault/method_name/pelicun_config.py' format where
+        'method_name' identifies the methodology through one of the
+        method aliases in the
+        `{base.pelicun_path}/resources/dlml_resource_paths.json` file
+        or directly through a DLML dataset ID (e.g.,
+        'seismic/building/portfolio/Hazus v6.1'). Such references are
+        resolved to the corresponding script in the installed Damage
+        and Loss Model Library (the `dlml` package).
     unique_id: int
         This id is required when multiple auto population scripts are
         run in sequence. It helps keep the imported module names unique.
@@ -112,27 +118,34 @@ def auto_populate(
         msg = 'No Asset Information provided for the auto-population routine.'
         raise ValueError(msg)
 
-    # replace default keyword with actual path in auto_script location
-    path_parts = Path(auto_script_path).resolve().parts
-    new_parts: list[str] = [
-        (Path(base.pelicun_path) / 'resources/auto').resolve().absolute().as_posix()
-        if part == 'PelicunDefault'
-        else part
-        for part in path_parts
-    ]
-    if 'PelicunDefault' in path_parts:
-        auto_script_path = Path(*new_parts)
+    # Resolve a 'PelicunDefault/' placeholder in the script path
+    # through the installed Damage and Loss Model Library. Paths
+    # without the placeholder pass through unchanged.
+    auto_script_path = Path(
+        file_io.substitute_default_path([str(auto_script_path)])[0]
+    )
 
     # load the auto population module
-    asp = Path(auto_script_path).resolve()
-    sys.path.insert(0, str(asp.parent) + '/')
-    spec = importlib.util.spec_from_file_location(f'auto_script_{unique_id}', asp)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    asp = auto_script_path.resolve()
+    module_name = f'auto_script_{unique_id}'
+    module = sys.modules.get(module_name)
+    if module is None or getattr(module, '__file__', None) != str(asp):
+        # Let the script import helper modules from its own folder.
+        script_dir = str(asp.parent)
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        spec = importlib.util.spec_from_file_location(module_name, asp)
+        module = importlib.util.module_from_spec(spec)
+        # Register the module so that a subsequent request for the same
+        # script with the same unique id reuses it instead of executing
+        # the script again.
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            del sys.modules[module_name]
+            raise
     auto_populate_ext = module.auto_populate
-
-    # auto_script = importlib.__import__(asp.name[:-3], globals(), locals(), [], 0)
-    # auto_populate_ext = auto_script.auto_populate
 
     # generate the DL input data
     aim_ap, dl_ap, comp = auto_populate_ext(aim=config_autopopulated)
