@@ -46,40 +46,9 @@ jobs:
       - name: Spell check
         run: uv run --no-sync codespell
 
-  # ----- STAGE 1.5: SETUP JOB (runs in parallel with checks) -----
-  setup:
-    name: Prepare Data Cache
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Read DLML version
-        id: dlml_version
-        run: echo "tag=$(cat .dlml-version)" >> $GITHUB_OUTPUT
-      - name: Cache DLML data
-        id: cache-dlml
-        uses: actions/cache@v4
-        with:
-          path: pelicun/resources/DamageAndLossModelLibrary
-          key: dlml-data-${{ hashFiles('.dlml-version') }}
-      - name: Set up uv
-        if: steps.cache-dlml.outputs.cache-hit != 'true'
-        uses: astral-sh/setup-uv@v5
-        with:
-          version: ${{ env.UV_VERSION }}
-          python-version: '3.12'
-          enable-cache: true
-      - name: Download DLML data on cache miss
-        if: steps.cache-dlml.outputs.cache-hit != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          uv sync --locked
-          uv run --no-sync pelicun dlml update ${{ steps.dlml_version.outputs.tag }}
-
-  # ----- STAGE 2: JOBS DEPENDENT ON SETUP -----
+  # ----- STAGE 2: TESTS AND DOCS -----
   test:
     name: Run Tests
-    needs: setup
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -93,11 +62,6 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-      - name: Restore DLML data from cache
-        uses: actions/cache@v4
-        with:
-          path: pelicun/resources/DamageAndLossModelLibrary
-          key: dlml-data-${{ hashFiles('.dlml-version') }}
       - name: Run tests
         run: uv run --locked --extra test python -m pytest --cov=pelicun --cov-report xml pelicun/tests
       - name: Upload coverage to Codecov
@@ -107,7 +71,6 @@ jobs:
 
   docs_check:
     name: Check Sphinx Warnings
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -117,11 +80,6 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: '3.12'
           enable-cache: true
-      - name: Restore DLML data from cache
-        uses: actions/cache@v4
-        with:
-          path: pelicun/resources/DamageAndLossModelLibrary
-          key: dlml-data-${{ hashFiles('.dlml-version') }}
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
       - name: Sync environment

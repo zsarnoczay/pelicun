@@ -40,10 +40,8 @@ dependencies = [
     "numexpr>=2.8, <3.0",
     "jsonschema>=4.22.0, <5.0",
     "tqdm>=4.60.0, <5.0",
-    "requests>=2.28.0, <3.0",
     "joblib>=1.2.0, <2.0",
     "scikit-learn>=1.0.0, <2.0",
-    "packaging>=23.0, <27.0",
     "simcenter-dlml>=3.0, <4.0"
 ]
 
@@ -52,7 +50,6 @@ test = [
     "glob2",
     "pytest",
     "pytest-cov",
-    "pytest-httpserver",
     "pytest-socket",
     "pytest-xdist",
 ]
@@ -64,10 +61,15 @@ lint = [
     "types-colorama",
 ]
 doc = [
+    # Autosummary imports pelicun.tests while generating stubs, and the
+    # tests package imports glob2.
+    "glob2",
     "jupyter",
     "jupytext",
     "nbsphinx",
     "numpydoc",
+    # The example notebooks executed during the docs build import pytest.
+    "pytest",
     "sphinx",
     "sphinx-rtd-theme",
     "sphinx_design",
@@ -178,9 +180,22 @@ skip = [
   "*/resources/DamageAndLossModelLibrary/*"]
 
 [tool.pytest.ini_options]
-socket_disabled_by_default = true
+# Block network access in tests (pytest-socket). Unix domain sockets stay
+# allowed because multiprocessing and joblib use them for local IPC.
+addopts = "--disable-socket --allow-unix-socket"
+# filterwarnings rules disabled so dependency deprecation warnings stay
+# visible. Re-enable individual rules below if a specific warning genuinely
+# needs suppression:
+# filterwarnings = [
+#     "ignore:.*errors='ignore' is deprecated and will raise.*:FutureWarning",
+#     "ignore:.*Downcasting object dtype arrays on.*:FutureWarning",
+#     "ignore:.*invalid value encountered in multiply.*:RuntimeWarning",
+#     "ignore:.*invalid value encountered in add.*:RuntimeWarning",
+#     "ignore:.*DataFrameGroupBy\\.apply operated on the grouping columns.*:DeprecationWarning",
+# ]
 
 [tool.mypy]
 ignore_missing_imports = true
+
 exclude = ".*/resources/DamageAndLossModelLibrary/.*"
 namespace_packages = false

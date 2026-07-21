@@ -535,8 +535,9 @@ def control_warnings() -> None:
     """
     Turn warnings on/off.
 
-        See also: `pelicun/pytest.ini`. Devs: make sure to update that
-        file when addressing & eliminating warnings.
+        See also: `[tool.pytest.ini_options]` in `pyproject.toml`.
+        Devs: make sure to update that section when addressing &
+        eliminating warnings.
 
     """
     if not sys.warnoptions:

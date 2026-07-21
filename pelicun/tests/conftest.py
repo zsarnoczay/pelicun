@@ -40,45 +40,9 @@ import shutil
 import tempfile
 from pathlib import Path
 from typing import Generator
-from unittest.mock import patch
 
 import pandas as pd
 import pytest
-
-# This is an explicit list of tests that handle their own network mocking
-# and should be excluded from the global fixture.
-EXCLUDED_TESTS = {
-    'test_check_dlml_data_with_missing_data',
-    'test_check_dlml_data_with_existing_data_update_available',
-    'test_check_dlml_data_download_failure',
-    'test_check_dlml_data_permission_error',
-    'test_check_dlml_data_version_check_failure',
-    'test_logging_configuration',
-    'test_warning_system_integration',
-}
-
-
-@pytest.fixture(autouse=True)
-def mock_dlml_data_check(
-    request: pytest.FixtureRequest,
-) -> Generator[None, None, None]:
-    """
-    Mocks the DLML data check for the entire test session, UNLESS
-    the test is in the specific exclusion list.
-
-    This provides a high-performance, fail-safe "no network" policy
-    while allowing specific integration tests to run their own logic.
-    """
-    # If the current test's name is in our exclusion list, do not
-    # apply the global mock.
-    if request.node.name in EXCLUDED_TESTS:
-        yield
-    else:
-        # For all other tests, apply the global mock.
-        target_function_path = 'pelicun.tools.dlml.check_dlml_data'
-        with patch(target_function_path) as mocked_check_func:
-            mocked_check_func.return_value = None
-            yield
 
 
 def _setup_common_test_data() -> Path:

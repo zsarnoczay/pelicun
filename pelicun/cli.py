@@ -40,48 +40,21 @@
 from __future__ import annotations
 
 import argparse
-import logging
-from datetime import datetime
 
-from pelicun.tools.dlml import dlml_update
 from pelicun.tools.regional_sim import regional_sim
 
+DLML_NOTICE = """\
+The Damage and Loss Model Library now installs together with pelicun as the
+`simcenter-dlml` Python package, so the default model data is always
+available and no separate download is needed. To update the model library,
+upgrade that package:
 
-def setup_dlml_logging(log_file: str | bool | None = None) -> None:  # noqa: FBT001
-    """
-    Configure logging for DLML operations.
+    pip install --upgrade simcenter-dlml
 
-    Parameters
-    ----------
-    log_file : str, optional
-        Path to log file. If True, creates timestamped file. If None, no file logging.
-    """
-    logger = logging.getLogger('pelicun.dlml')
-
-    # Only add handlers if none exist (avoid duplicates)
-    if not logger.handlers:
-        # Always add stdout handler for CLI operations
-        stdout_handler = logging.StreamHandler()
-        stdout_formatter = logging.Formatter('%(message)s')
-        stdout_handler.setFormatter(stdout_formatter)
-        logger.addHandler(stdout_handler)
-
-        # Add file handler if requested
-        if log_file:
-            if log_file is True:  # --log without filename
-                timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')  # noqa: DTZ005
-                log_file = f'dlml_update_{timestamp}.log'
-
-            file_handler = logging.FileHandler(log_file)
-            file_formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            file_handler.setFormatter(file_formatter)
-            logger.addHandler(file_handler)
-
-            print(f'Logging to file: {log_file}')  # noqa: T201
-
-        logger.setLevel(logging.INFO)
+The `pelicun dlml` command no longer performs downloads; it is kept only so
+that existing scripts calling it continue to work. It is planned for
+removal in pelicun 3.12.\
+"""
 
 
 def main() -> None:
@@ -101,13 +74,7 @@ Examples:
     pelicun regional_sim my_config.json -n 8      # Use custom config with 8 CPU cores
 
   DLML Data Management:
-    pelicun dlml update                           # Update to latest DLML version
-    pelicun dlml update latest                    # Same as above (explicit)
-    pelicun dlml update v1.2.0                   # Update to specific version
-    pelicun dlml update "commit abc1234"          # Update to specific commit SHA
-    pelicun dlml update --no-cache latest         # Force re-download without caching
-    pelicun dlml update --no-cache v1.2.0         # Update to version without caching
-    pelicun dlml update --no-cache "commit def567" # Update to commit without caching
+    pelicun dlml                                  # Explain how DLML data is managed
 
   Getting Help:
     pelicun --help                                # Show this help message
@@ -149,39 +116,26 @@ Examples:
     # Associate the regional_sim function with this subparser
     parser_regional.set_defaults(func=regional_sim)
 
-    # Create the parser for the "dlml" subcommand
+    # Create the parser for the "dlml" subcommand. The Damage and Loss
+    # Model Library data now installs with pelicun as the
+    # `simcenter-dlml` package, so this subcommand only explains how to
+    # manage the data. It accepts (and ignores) the arguments of the
+    # retired `pelicun dlml update` interface, so existing scripts that
+    # call it keep working. The stub (and its tests in
+    # tests/basic/test_cli.py) is scheduled for removal in pelicun 3.12.
     parser_dlml = subparsers.add_parser(
-        'dlml', help='Update DLML (Damage and Loss Model Library) data files.'
-    )
-
-    # Add the arguments specific to dlml
-    parser_dlml.add_argument(
-        'action',
-        choices=['update'],
-        help='Action to perform. Currently only "update" is supported.',
+        'dlml',
+        help='Explain how DLML (Damage and Loss Model Library) data is managed.',
+        description=DLML_NOTICE,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser_dlml.add_argument(
-        'target',
-        nargs='?',
-        default='latest',
-        help='Version tag (e.g., v1.2.0) or "latest" for the latest release. '
-        'Use "commit <sha>" to specify a commit SHA.',
+        'legacy_args',
+        nargs=argparse.REMAINDER,
+        metavar='...',
+        help='Ignored. Arguments of the retired "pelicun dlml update" '
+        'interface are accepted for backward compatibility.',
     )
-    parser_dlml.add_argument(
-        '--no-cache',
-        action='store_true',
-        help='Disable caching to force re-download of all files.',
-    )
-    parser_dlml.add_argument(
-        '--log',
-        nargs='?',
-        const=True,
-        metavar='LOGFILE',
-        help='Save detailed log to specified file. If no filename provided, '
-        'creates dlml_update_TIMESTAMP.log in current directory.',
-    )
-    # Associate the dlml_update function with this subparser
-    parser_dlml.set_defaults(func=dlml_update)
 
     # Parse the arguments from the command line
     args = parser.parse_args()
@@ -190,16 +144,7 @@ Examples:
     if args.subcommand == 'regional_sim':
         args.func(config_file=args.config_file, num_cores=args.num_cores)
     elif args.subcommand == 'dlml':
-        # Setup logging for DLML operations
-        setup_dlml_logging(log_file=args.log)
-
-        # Handle dlml arguments
-        use_cache = not args.no_cache
-        if args.target.startswith('commit '):
-            commit_sha = args.target.split(' ', 1)[1]
-            args.func(commit=commit_sha, use_cache=use_cache)
-        else:
-            args.func(version=args.target, use_cache=use_cache)
+        print(DLML_NOTICE)  # noqa: T201
 
 
 if __name__ == '__main__':

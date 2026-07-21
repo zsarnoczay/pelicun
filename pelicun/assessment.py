@@ -979,7 +979,6 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
-
                     component_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
@@ -1511,7 +1510,6 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
-
                     consequence_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]

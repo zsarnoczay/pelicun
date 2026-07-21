@@ -387,7 +387,7 @@ def resolve_default_dataset_path(method_name: str) -> Path:
 def substitute_default_path(  # noqa: C901
     data_paths: list[str], log: base.Logger | None = None
 ) -> list[str]:
-    """
+    r"""
     Substitute the default directory path.
 
     This function iterates over a list of data paths and replaces
@@ -457,6 +457,10 @@ def substitute_default_path(  # noqa: C901
       are located.
     - If a path in the input list does not contain 'PelicunDefault/',
       the path is added to the output list unchanged.
+    - Backslashes in 'PelicunDefault' paths are treated as path
+      separators, so Windows-style and mixed-separator inputs (e.g.,
+      'PelicunDefault/FEMA P-58\fragility.csv') are accepted on every
+      platform.
 
     Examples
     --------
@@ -478,13 +482,16 @@ def substitute_default_path(  # noqa: C901
             )
             raise TypeError(msg)
 
-        if 'PelicunDefault/' not in data_path:
+        # Tolerate backslashes and mixed separators in default paths
+        normalized_path = data_path.replace('\\', '/')
+
+        if 'PelicunDefault/' not in normalized_path:
             updated_paths.append(data_path)
             continue
 
         # Take the part after the 'PelicunDefault/' placeholder and
         # split it into a method name and a filename.
-        remainder = data_path.split('PelicunDefault/')[-1]
+        remainder = normalized_path.split('PelicunDefault/')[-1]
         method_name, _, file_name = remainder.rpartition('/')
 
         if not file_name:

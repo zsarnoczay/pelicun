@@ -167,6 +167,19 @@ def test_substitute_default_path() -> None:
     )
     assert result_paths[0] == expected_path
 
+    # backslashes and mixed separators (common in configs written on
+    # Windows) are treated as path separators on every platform;
+    # non-default passthrough entries keep their original separators
+    input_paths = [
+        'PelicunDefault/FEMA P-58\\fragility.csv',
+        'PelicunDefault\\FEMA P-58\\fragility.csv',
+        'C:\\data\\file2.txt',
+    ]
+    result_paths = file_io.substitute_default_path(input_paths)
+    assert result_paths[0] == expected_path
+    assert result_paths[1] == expected_path
+    assert result_paths[2] == 'C:\\data\\file2.txt'
+
     # only string paths are accepted; in-memory model data (e.g.,
     # DataFrames) needs to be handled by the caller
     with pytest.raises(TypeError, match='Data paths need to be strings'):
