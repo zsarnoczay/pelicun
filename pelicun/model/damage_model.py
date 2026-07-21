@@ -175,8 +175,14 @@ class DamageModel(PelicunModel):
         self.log.div()
         self.log.msg('Loading damage model...', prepend_timestamp=False)
 
-        # replace default flag with default data path
-        data_paths = file_io.substitute_default_path(data_paths, log=self.log)
+        # Replace default flags with default data paths. In-memory
+        # model data (DataFrames) passes through unchanged.
+        data_paths = [
+            file_io.substitute_default_path([data_path], log=self.log)[0]
+            if isinstance(data_path, str)
+            else data_path
+            for data_path in data_paths
+        ]
 
         #
         # load damage parameter data into the models

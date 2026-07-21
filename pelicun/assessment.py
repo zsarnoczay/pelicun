@@ -209,7 +209,6 @@ class AssessmentBase:
             data_path = file_io.substitute_default_path(
                 [f'PelicunDefault/{method_name}/{model_type}.csv'], log=self.log
             )[0]
-        assert isinstance(data_path, str)
 
         data = file_io.load_data(
             data_path, None, orientation=1, reindex=False, log=self.log
@@ -254,7 +253,6 @@ class AssessmentBase:
             data_path = file_io.substitute_default_path(
                 [f'PelicunDefault/{method_name}/{model_type}.json'], log=self.log
             )[0]
-        assert isinstance(data_path, str)
 
         with Path(data_path).open(encoding='utf-8') as f:
             data = json.load(f)
@@ -981,14 +979,18 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
+
                     component_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
                 else:
-                    component_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/fragility.csv'], log=self.log
-                    )[0]
-                assert isinstance(component_db_path, str)
+                    # Not every method provides fragility models, so
+                    # resolve the method's dataset folder and check for
+                    # the file there.
+                    component_db_path = str(
+                        file_io.resolve_default_dataset_path(method_name)
+                        / 'fragility.csv'
+                    )
 
                 if Path(component_db_path).is_file():
                     component_db.append(component_db_path)
@@ -1437,7 +1439,6 @@ class DLCalculationAssessment(AssessmentBase):
                 ['PelicunDefault/Hazus Hurricane Wind/combine_wind_flood.csv'],
                 log=self.log,
             )[0]
-            assert isinstance(file_path, str)
             combination_array = pd.read_csv(
                 file_path,
                 index_col=None,
@@ -1510,15 +1511,19 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
+
                     consequence_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
+                    dataset_path = Path(consequence_db_path).parent
                 else:
-                    consequence_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/consequence_repair.csv'],
-                        log=self.log,
-                    )[0]
-                assert isinstance(consequence_db_path, str)
+                    # Not every method provides consequence models, so
+                    # resolve the method's dataset folder and check for
+                    # the file there.
+                    dataset_path = file_io.resolve_default_dataset_path(method_name)
+                    consequence_db_path = str(
+                        dataset_path / 'consequence_repair.csv'
+                    )
 
                 if Path(consequence_db_path).is_file():
                     consequence_db.append(consequence_db_path)
@@ -1533,10 +1538,7 @@ class DLCalculationAssessment(AssessmentBase):
 
                 else:
                     # try loading loss functions instead
-                    loss_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/loss_repair.csv'],
-                        log=self.log,
-                    )[0]
+                    loss_db_path = str(dataset_path / 'loss_repair.csv')
 
                     if Path(loss_db_path).is_file():
                         consequence_db.append(loss_db_path)

@@ -70,7 +70,7 @@ from pelicun.base import (
     update,
     update_vals,
 )
-from pelicun.file_io import substitute_default_path
+from pelicun.file_io import resolve_default_dataset_path
 from pelicun.pelicun_warnings import PelicunInvalidConfigError
 
 colorama.init()
@@ -670,10 +670,12 @@ def _parse_config_file(  # noqa: C901, PLR0912
 
             auto_script_paths = []
             for dl_method in dl_methods:
-                auto_script_path = substitute_default_path(
-                    [f'PelicunDefault/{dl_method}/pelicun_config.py']
-                )[0]
-                auto_script_paths.append(Path(auto_script_path).resolve())
+                # The configuration script is optional, so resolve the
+                # method's dataset folder and look for the script
+                # there. Its availability is checked below.
+                dataset_path = resolve_default_dataset_path(dl_method)
+                auto_script_path = dataset_path / 'pelicun_config.py'
+                auto_script_paths.append(auto_script_path.resolve())
 
         for auto_script_path in auto_script_paths:
             if not auto_script_path.exists():

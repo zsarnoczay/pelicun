@@ -3113,6 +3113,7 @@ dependencies = [
     { name = "scikit-learn", version = "1.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "simcenter-dlml" },
     { name = "tqdm" },
 ]
 
@@ -3217,6 +3218,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'lint'", specifier = "==0.7.0" },
     { name = "scikit-learn", specifier = ">=1.0.0,<2.0" },
     { name = "scipy", specifier = ">=1.8.0,<1.16" },
+    { name = "simcenter-dlml", specifier = ">=3.0,<4.0" },
     { name = "sphinx", marker = "extra == 'doc'" },
     { name = "sphinx-design", marker = "extra == 'doc'" },
     { name = "sphinx-rtd-theme", marker = "extra == 'doc'" },
@@ -4675,6 +4677,23 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz", hash = "sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9", size = 1152316, upload-time = "2026-03-09T12:47:17.221Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl", hash = "sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb", size = 1006223, upload-time = "2026-03-09T12:47:15.026Z" },
+]
+
+[[package]]
+name = "simcenter-dlml"
+version = "3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jsonschema", version = "4.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "jsonschema", version = "4.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.10.*'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/ba/f2fc361a44c9f695433aad1de1c6b7a68bb10638bfbbac4098d0944addd1/simcenter_dlml-3.0.tar.gz", hash = "sha256:1ef0dda4f209adf08daea88bb4be9715af06b329f8e91f3f5548e3f30ebbface", size = 12536051, upload-time = "2026-07-14T12:50:05.973Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/70/84/c4c201b78c5983e8f4d5d7d24bd4d7ccdd36a863b231e0f7695535f7f46e/simcenter_dlml-3.0-py3-none-any.whl", hash = "sha256:fc262f852ce714ce683a1aa338cce79a7cd43d64780524a8c228c1c4878c0f4d", size = 12941899, upload-time = "2026-07-14T12:50:02.856Z" },
 ]
 
 [[package]]
