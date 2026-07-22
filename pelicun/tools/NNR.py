@@ -125,6 +125,7 @@ def NNR(  # noqa: N802, C901
 
     """
     EPSILON = 1e-20  # noqa: N806
+    predicted_values: np.ndarray
     if source.ndim == 1:
         source_locations = source.reshape(-1, 1)
         target_locations = target.reshape(-1, 1)

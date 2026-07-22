@@ -41,6 +41,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -70,8 +71,8 @@ def setup_auto_script_path() -> str:
 
 
 @pytest.fixture
-def setup_expected_base_path() -> str:
-    return '/expected/path/resources/auto/'
+def setup_hazus_eq_script_path() -> str:
+    return 'PelicunDefault/Hazus Earthquake - Buildings/pelicun_config.py'
 
 
 """
@@ -99,13 +100,36 @@ def test_missing_general_information() -> None:
         auto_populate({}, Path('some/path'))
 
 
-def test_pelicun_default_path_replacement(
-    setup_auto_script_path: str, setup_expected_base_path: str
+def test_pelicun_default_script_path_resolution(
+    setup_valid_config: dict, setup_hazus_eq_script_path: str
 ) -> None:
-    modified_path = setup_auto_script_path.replace(
-        'PelicunDefault/', setup_expected_base_path
-    )
-    assert modified_path.startswith(setup_expected_base_path)
+    # Auto script paths under 'PelicunDefault/' are resolved to the
+    # corresponding script in the installed Damage and Loss Model
+    # Library (the `dlml` package) before the script is loaded.
+    with (
+        patch('importlib.util.spec_from_file_location') as mock_spec,
+        patch('importlib.util.module_from_spec') as mock_module,
+    ):
+        mock_module.return_value.auto_populate.return_value = (
+            {'AIM_ap': 'value'},
+            {'DL_ap': 'value'},
+            'CMP',
+        )
+        config, cmp = auto_populate(
+            setup_valid_config, Path(setup_hazus_eq_script_path)
+        )
+
+    # remove the mock module registered under the default unique id
+    sys.modules.pop('auto_script_1', None)
+
+    resolved_path = Path(mock_spec.call_args[0][1])
+    assert 'PelicunDefault' not in resolved_path.parts
+    assert 'dlml' in resolved_path.parts
+    assert resolved_path.name == 'pelicun_config.py'
+    assert resolved_path.is_file()
+
+    assert config['DL'] == {'DL_ap': 'value'}
+    assert cmp == 'CMP'
 
 
 """

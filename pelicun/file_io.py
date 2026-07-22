@@ -46,6 +46,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import dlml
 import numpy as np
 import pandas as pd
 
@@ -86,8 +87,8 @@ legacy_names = {
     'damage_DB_Hazus_EQ_bldg': 'Hazus Earthquake - Buildings',
     'damage_DB_Hazus_EQ_story': 'Hazus Earthquake - Stories',
     'damage_DB_Hazus_EQ_trnsp': 'Hazus Earthquake - Transportation',
-    'damage_DB_Hazus_EQ_water': 'Hazus Earthquake - Water',
-    'damage_DB_Hazus_EQ_power': 'Hazus Earthquake - Power',
+    'damage_DB_Hazus_EQ_water': 'Hazus Earthquake - Potable Water',
+    'damage_DB_Hazus_EQ_power': 'Hazus Earthquake - Electric Power',
     'damage_DB_SimCenter_Hazus_HU_bldg': 'Hazus Hurricane Wind',
     'loss_repair_DB_FEMA_P58_2nd': 'FEMA P-58',
     'loss_repair_DB_Hazus_EQ_bldg': 'Hazus Earthquake - Buildings',
@@ -262,50 +263,192 @@ def save_to_csv(  # noqa: C901
     return data
 
 
-def substitute_default_path(
-    data_paths: list[str | pd.DataFrame], log: base.Logger | None = None
-) -> list[str | pd.DataFrame]:
+def _load_dlml_resource_paths() -> dict:
     """
+    Load the map of method aliases to DLML dataset IDs.
+
+    Returns
+    -------
+    dict
+        The contents of the
+        `{base.pelicun_path}/resources/dlml_resource_paths.json` file.
+
+    """
+    resource_file_path = (
+        Path(base.pelicun_path) / 'resources' / 'dlml_resource_paths.json'
+    )
+    with resource_file_path.open('r') as file:
+        return json.load(file)
+
+
+def _resolve_default_dataset_id(method_name: str) -> str | None:
+    """
+    Map a default method name to a DLML dataset ID.
+
+    Parameters
+    ----------
+    method_name: str
+        A method alias listed in the
+        `{base.pelicun_path}/resources/dlml_resource_paths.json` file,
+        or a DLML dataset ID (e.g.,
+        'seismic/building/component/FEMA P-58 2nd Edition').
+
+    Returns
+    -------
+    str or None
+        The DLML dataset ID that the method name maps to, or None if
+        the method name is neither a method alias nor a valid DLML
+        dataset ID. Callers are expected to raise a KeyError with the
+        `_unknown_method_msg` message in the latter case.
+
+    """
+    resource_paths = _load_dlml_resource_paths()
+
+    if method_name in resource_paths:
+        return resource_paths[method_name]
+
+    if method_name in dlml.list_datasets():
+        return method_name
+
+    return None
+
+
+def _unknown_method_msg(method_name: str) -> str:
+    """
+    Describe an unrecognized default method name.
+
+    Parameters
+    ----------
+    method_name: str
+        A method name that `_resolve_default_dataset_id` did not
+        recognize.
+
+    Returns
+    -------
+    str
+        An error message listing the valid method aliases.
+
+    """
+    resource_paths = _load_dlml_resource_paths()
+    return (
+        f'Method `{method_name}` is not a valid method alias '
+        f'or DLML dataset ID. Valid method aliases: '
+        f'{", ".join(sorted(resource_paths))}. '
+        f'Full DLML dataset IDs, such as '
+        f'`seismic/building/component/FEMA P-58 2nd Edition`, '
+        f'are also accepted.'
+    )
+
+
+def resolve_default_dataset_path(method_name: str) -> Path:
+    """
+    Resolve a default method name to its dataset folder.
+
+    The returned folder holds the model data files of the method's
+    dataset in the installed Damage and Loss Model Library (the `dlml`
+    package). Use this function to check whether a method provides an
+    optional file (e.g., 'pelicun_config.py') before reading it. To
+    resolve files that are expected to exist, use
+    `substitute_default_path`, which raises a descriptive error when a
+    requested file is unavailable.
+
+    Parameters
+    ----------
+    method_name: str
+        A method alias listed in the
+        `{base.pelicun_path}/resources/dlml_resource_paths.json` file,
+        or a DLML dataset ID (e.g.,
+        'seismic/building/component/FEMA P-58 2nd Edition').
+
+    Returns
+    -------
+    Path
+        The path to the dataset's folder in the installed DLML package.
+
+    Raises
+    ------
+    KeyError
+        If the method name is neither a method alias in
+        `dlml_resource_paths.json` nor a valid DLML dataset ID.
+
+    """
+    dataset_id = _resolve_default_dataset_id(method_name)
+    if dataset_id is None:
+        raise KeyError(_unknown_method_msg(method_name))
+
+    # The public DLML API resolves files rather than folders. By
+    # construction, every dataset provides the parameters CSV of at least one
+    # collection, so resolve one of those files and locate the folder through
+    # its parent.
+    collection = dlml.available_collections(dataset_id)[0]
+    return dlml.get_file(dataset_id, f'{collection}.csv').parent
+
+
+def substitute_default_path(  # noqa: C901
+    data_paths: list[str], log: base.Logger | None = None
+) -> list[str]:
+    r"""
     Substitute the default directory path.
 
     This function iterates over a list of data paths and replaces
     those with the 'PelicunDefault/' substring with the full paths to
-    model files in the built-in Damage and Loss Model Library.
-    Default paths are expected to follow the
+    model files in the installed Damage and Loss Model Library (the
+    `dlml` package). Default paths are expected to follow the
     `PelicunDefault/method_name/model_type.extension` structure. The
-    `method_name` identifies the methodology from those available in the
-    `{base.pelicun_path}/resources/dlml_resource_paths.json` file. The
+    `method_name` identifies the methodology through one of the aliases
+    in the `{base.pelicun_path}/resources/dlml_resource_paths.json`
+    file, or directly through a DLML dataset ID (e.g.,
+    `seismic/building/component/FEMA P-58 2nd Edition`). The
     `model_type` identifies the type of model requested. Currently, the
     following types are supported: 'fragility', 'consequence_repair',
     'loss_repair'. The `extension` is intended to identify 'CSV' files with
     model parameters and 'JSON' files with metadata.
     The `model_type` and `extension` strings are not limited to the
-    supported values. If you know a particular file exists in the method's
-    folder, you can use the corresponding `model_type.extension` to access
-    that file.
+    supported values: any `model_type.extension` that identifies a file
+    in the method's folder resolves to that file. Every returned path
+    points to an existing file; requesting a file that the method does
+    not provide raises an error. To check whether a method provides an
+    optional file, resolve the method's dataset folder with
+    `resolve_default_dataset_path` and look for the file there.
+    Legacy placeholder filenames right after 'PelicunDefault/' (e.g.,
+    `PelicunDefault/damage_DB_FEMA_P58_2nd.csv`) are still recognized,
+    trigger a deprecation warning, and are mapped to the corresponding
+    method and model type.
 
     Parameters
     ----------
-    data_paths: list of str or pd.DataFrame
+    data_paths: list of str
         A list containing the paths to data files. These paths may
         include a placeholder directory 'PelicunDefault/' that needs
-        to be substituted with the actual path specified in the
-        resource mapping.
+        to be substituted with the actual path to the data file in the
+        installed Damage and Loss Model Library.
     log: Logger
         Logger object to be used. If no object is specified, no logging
         is performed.
 
     Returns
     -------
-    list of str or pd.DataFrame
+    list of str
+        The updated paths, with every 'PelicunDefault/' entry replaced
+        by the full path to the corresponding file in the installed
+        DLML package.
 
     Raises
     ------
+    TypeError
+        If an element of `data_paths` is not a string.
     KeyError
-      If the method_name after 'PelicunDefault/' does not exist in the
-      `resource_paths` keys.
-      If the method_name after 'PelicunDefault/' does not exist in the
-      legacy list of filenames preserved for backwards compatibility.
+        If the method name after 'PelicunDefault/' is neither a method
+        alias in `dlml_resource_paths.json` nor a valid DLML dataset
+        ID.
+    KeyError
+        If a bare filename right after 'PelicunDefault/' is not one of
+        the legacy placeholder filenames preserved for backwards
+        compatibility.
+    KeyError
+        If a default data path does not include a filename.
+    dlml.DatasetFileNotFoundError
+        If the requested file is not provided by the method's dataset.
 
     Notes
     -----
@@ -314,85 +457,112 @@ def substitute_default_path(
       are located.
     - If a path in the input list does not contain 'PelicunDefault/',
       the path is added to the output list unchanged.
+    - Backslashes in 'PelicunDefault' paths are treated as path
+      separators, so Windows-style and mixed-separator inputs (e.g.,
+      'PelicunDefault/FEMA P-58\fragility.csv') are accepted on every
+      platform.
 
     Examples
     --------
     >>> data_paths = ['PelicunDefault/Hazus Hurricane/fragility.csv', 'data/file2.txt']
     >>> substitute_default_path(data_paths)
-    ['{base.pelicun_path}/resources/DamageAndLossModelLibrary/'
-      'hurricane/building/portfolio/Hazus v5.1 coupled/fragility.csv',
+    ['<site-packages>/dlml/data/hurricane/building/portfolio/'
+      'Hazus v5.1 coupled/fragility.csv',
       'data/file2.txt']
 
     """
-    # Load the resource paths from the JSON file
-    resource_file_path = (
-        Path(base.pelicun_path) / 'resources' / 'dlml_resource_paths.json'
-    )
-    with resource_file_path.open('r') as file:
-        resource_paths = json.load(file)
+    updated_paths: list[str] = []
+    for data_path in data_paths:
+        if not isinstance(data_path, str):
+            msg = (
+                f'Data paths need to be strings, but the provided list '
+                f'contains an element of type '
+                f'`{type(data_path).__name__}`. In-memory model data '
+                f'needs to be handled by the caller.'
+            )
+            raise TypeError(msg)
 
-    updated_paths: list[str | pd.DataFrame] = []
-    for data_path_str in data_paths:
-        if isinstance(data_path_str, str) and 'PelicunDefault/' in data_path_str:
-            data_path = Path(data_path_str)
-            # Extract the filename from the end after 'PelicunDefault/'
-            file_name = data_path.parts[-1]
+        # Tolerate backslashes and mixed separators in default paths
+        normalized_path = data_path.replace('\\', '/')
 
-            # Check if there is a method name identified
-            method_name = data_path.parts[-2]
+        if 'PelicunDefault/' not in normalized_path:
+            updated_paths.append(data_path)
+            continue
 
-            # <backwards compatibility>
-            if method_name == 'PelicunDefault':
-                # No method name, check for legacy input
-                if file_name.startswith(
-                    ('fragility_DB', 'damage_DB', 'bldg_repair_DB', 'loss_repair_DB')
-                ):
-                    if log:
-                        log.warning(
-                            'Default libraries are no longer referenced using '
-                            'the following placeholder filenames after "PelicunDB/": '
-                            '`fragility_DB...`, `damage_DB...`, `bldg_repair_DB...`, '
-                            '`loss_repair_DB...`. Such inputs will lead to errors in '
-                            'future versions of pelicun. Please replace such '
-                            'references with a combination of a specific method and '
-                            'data type. For example, use '
-                            '`PelicunDefault/FEMA P-58/fragility` to get FEMA P-58 '
-                            'damage models, and '
-                            '`PelicunDefault/Hazus Hurricane/consequence_repair` to '
-                            'get Hazus hurricane consequence models. See the online '
-                            'documentation for more details.'
-                        )
+        # Take the part after the 'PelicunDefault/' placeholder and
+        # split it into a method name and a filename.
+        remainder = normalized_path.split('PelicunDefault/')[-1]
+        method_name, _, file_name = remainder.rpartition('/')
 
-                    method_name = legacy_names[file_name.split('.')[0]]
-                    if file_name.startswith(('fragility', 'damage')):
-                        data_type = 'fragility'
-                    else:
-                        data_type = 'consequence_repair'
+        if not file_name:
+            msg = f'Default data path `{data_path}` does not include a filename.'
+            raise KeyError(msg)
 
-                    extension = file_name.split('.')[-1]
-                    file_name = f'{data_type}.{extension}'
+        # <backwards compatibility>
+        if not method_name:
+            # No method name, check for legacy input
+            if file_name.startswith(
+                ('fragility_DB', 'damage_DB', 'bldg_repair_DB', 'loss_repair_DB')
+            ):
+                if log:
+                    log.warning(
+                        'Default libraries are no longer referenced using '
+                        'the following placeholder filenames after "PelicunDB/": '
+                        '`fragility_DB...`, `damage_DB...`, `bldg_repair_DB...`, '
+                        '`loss_repair_DB...`. Such inputs will lead to errors in '
+                        'future versions of pelicun. Please replace such '
+                        'references with a combination of a specific method and '
+                        'data type. For example, use '
+                        '`PelicunDefault/FEMA P-58/fragility` to get FEMA P-58 '
+                        'damage models, and '
+                        '`PelicunDefault/Hazus Hurricane/consequence_repair` to '
+                        'get Hazus hurricane consequence models. See the online '
+                        'documentation for more details.'
+                    )
 
-                else:
-                    msg = f'Default data path `{data_path_str}` not recognized.'
+                legacy_name = file_name.split('.')[0]
+                if legacy_name not in legacy_names:
+                    msg = (
+                        f'Default data path `{data_path}` uses the legacy '
+                        f'placeholder-filename format, but `{legacy_name}` '
+                        f'is not one of the legacy filenames preserved '
+                        f'for backwards compatibility: '
+                        f'{", ".join(sorted(legacy_names))}. '
+                        f'Please refer to default model data with a '
+                        f'combination of a specific method and data type '
+                        f'instead, such as '
+                        f'`PelicunDefault/FEMA P-58/fragility.csv`.'
+                    )
                     raise KeyError(msg)
 
-            # Check if the method name exists in the resource paths dictionary
-            if method_name not in resource_paths:
-                msg = f'Method `{method_name}` not found in resource paths.'
-                raise KeyError(msg)
-            method_folder = resource_paths[method_name]
+                method_name = legacy_names[legacy_name]
+                if file_name.startswith(('fragility', 'damage')):
+                    data_type = 'fragility'
+                else:
+                    data_type = 'consequence_repair'
 
-            # Substitute the default path with a full path to the file
-            updated_path = str(
-                Path(base.pelicun_path)
-                / 'resources'
-                / 'DamageAndLossModelLibrary'
-                / method_folder
-                / file_name
-            )
-            updated_paths.append(updated_path)
-        else:
-            updated_paths.append(data_path_str)
+                extension = file_name.split('.')[-1]
+                file_name = f'{data_type}.{extension}'
+
+            else:
+                msg = f'Default data path `{data_path}` not recognized.'
+                raise KeyError(msg)
+
+        # Map the method name to a DLML dataset, either through a
+        # method alias or directly through a dataset ID.
+        dataset_id = _resolve_default_dataset_id(method_name)
+        if dataset_id is None:
+            raise KeyError(_unknown_method_msg(method_name))
+
+        # Substitute the default path with the full path to the
+        # requested file in the installed DLML package.
+        try:
+            updated_paths.append(str(dlml.get_file(dataset_id, file_name)))
+        except dlml.DatasetFileNotFoundError:  # noqa: TRY203
+            # Re-raised explicitly: DLML's descriptive error about the
+            # missing file is part of this function's documented
+            # contract.
+            raise
 
     return updated_paths
 
@@ -485,11 +655,9 @@ def load_data(  # noqa: C901
 
         if unit_conversion_factors is not None:
             numeric_elements = (
-                (data.select_dtypes(include=[np.number]).index)  # type: ignore
+                (data.select_dtypes(include=[np.number]).index)
                 if orientation == 0
-                else (
-                    data.select_dtypes(include=[np.number]).columns  # type: ignore
-                )
+                else (data.select_dtypes(include=[np.number]).columns)
             )
 
             if log:
@@ -505,18 +673,18 @@ def load_data(  # noqa: C901
 
             if orientation == 1:
                 data.loc[:, numeric_elements] = data.loc[
-                    :, numeric_elements  # type: ignore
+                    :, numeric_elements
                 ].multiply(
                     conversion_factors,
                     axis=axis[orientation],  # type: ignore
-                )  # type: ignore
+                )
             else:
                 data.loc[numeric_elements, :] = data.loc[
                     numeric_elements, :
                 ].multiply(
                     conversion_factors,
                     axis=axis[orientation],  # type: ignore
-                )  # type: ignore
+                )
 
         if log:
             log.msg('Unit conversion successful.', prepend_timestamp=False)
@@ -540,7 +708,7 @@ def load_data(  # noqa: C901
     if return_units:
         if units is not None:
             # convert index in units Series to MultiIndex if needed
-            units = base.convert_to_MultiIndex(units, axis=0).dropna()  # type: ignore
+            units = base.convert_to_MultiIndex(units, axis=0).dropna()
             units = units.sort_index()
         output = data, units
     else:

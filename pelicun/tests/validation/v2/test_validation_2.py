@@ -130,7 +130,7 @@ def test_combined_workflow() -> None:
             axis=1,
             keys=['RID'],
         )
-        demand_sample_ext = pd.concat([demand_sample, rid], axis=1)  # type: ignore
+        demand_sample_ext = pd.concat([demand_sample, rid], axis=1)
 
         demand_sample_ext['SA_1.13', 0, 1] = 1.50
 

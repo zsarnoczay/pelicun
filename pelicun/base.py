@@ -50,13 +50,22 @@ import traceback
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Optional,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import colorama
 import numpy as np
 import pandas as pd
 from colorama import Fore, Style
-from scipy.interpolate import interp1d  # type: ignore
+from dlml import vocabulary
+from scipy.interpolate import interp1d
 
 from pelicun.pelicun_warnings import PelicunWarning
 
@@ -72,7 +81,7 @@ colorama.init()
 pp = pprint.PrettyPrinter(indent=2, width=80 - 24)
 
 pd.options.display.max_rows = 20
-pd.options.display.max_columns = None  # type: ignore
+pd.options.display.max_columns = None
 pd.options.display.expand_frame_repr = True
 pd.options.display.width = 300
 
@@ -142,6 +151,24 @@ class Options:
         configuration dictionary, otherwise left as provided in the
         default configuration file (see settings/default_config.json
         in the pelicun source code).
+    edp_to_demand_type: dict
+        Maps the verbose demand names used in model parameters
+        (e.g., 'Story Drift Ratio') to short demand-type acronyms
+        (e.g., 'PID'). The mapping is derived from the defaults in
+        `base.EDP_TYPES` extended with the entries of the
+        "CustomDemandTypes" dictionary in the user's configuration
+        dictionary, which register custom demand names with their
+        acronym and unit type and may also override the defaults. The
+        merged mapping only applies to assessments using this
+        Options object.
+    demand_unit_types: dict
+        Maps demand-type acronyms (e.g., 'PFA') to the unit type the
+        demand is measured in (e.g., 'acceleration'). Like
+        `edp_to_demand_type`, the mapping is derived from the
+        defaults in `base.EDP_TYPES` extended with the entries of the
+        "CustomDemandTypes" dictionary in the user's configuration
+        dictionary, and only applies to assessments using this
+        Options object.
     log: Logger
         Logger object. Configuration parameters coming from the user's
         configuration dictionary or the default configuration file
@@ -155,12 +182,11 @@ class Options:
         '_seed',
         'defaults',
         'demand_offset',
+        'demand_unit_types',
         'eco_scale',
-        'eco_scale',
-        'error_setup',
+        'edp_to_demand_type',
         'error_setup',
         'list_all_ds',
-        'log',
         'log',
         'nondir_multi_dict',
         'rho_cost_time',
@@ -187,7 +213,19 @@ class Options:
             for an Assessment (e.g. defining an Options object for UQ
             use), this value should be None.
 
-        """
+        Raises
+        ------
+        TypeError
+            If an entry of the "CustomDemandTypes" configuration
+            dictionary has a demand name that is not a string, does
+            not map to a dictionary, or has a non-string acronym or
+            unit type.
+        ValueError
+            If an entry of the "CustomDemandTypes" configuration
+            dictionary is invalid, or if two demand names map the
+            same acronym to conflicting unit types.
+
+        """  # noqa: DOC502
         self._asmnt = assessment
 
         self.defaults: dict[str, Any] | None = None
@@ -216,6 +254,36 @@ class Options:
             log_show_ms=merged_config_options['LogShowMS'],
             print_log=merged_config_options['PrintLog'],
         )
+
+        # Build the assessment-scoped demand-type vocabulary: the
+        # defaults in `EDP_TYPES` extended with the entries of the
+        # "CustomDemandTypes" option. Custom entries may override the
+        # defaults. Both mappings below are views derived from the
+        # merged vocabulary.
+        custom_demand_types = merged_config_options['CustomDemandTypes']
+        demand_types = _merge_custom_demand_types(custom_demand_types, self.log)
+        self.edp_to_demand_type: dict[str, str] = {
+            name: info['Acronym'] for name, info in demand_types.items()
+        }
+        self.demand_unit_types: dict[str, str] = {}
+        first_registrant_by_acronym: dict[str, str] = {}
+        for demand_name, demand_info in demand_types.items():
+            acronym = demand_info['Acronym']
+            unit_type = demand_info['UnitType']
+            existing_unit_type = self.demand_unit_types.get(acronym)
+            if existing_unit_type is not None and existing_unit_type != unit_type:
+                first_registrant = first_registrant_by_acronym[acronym]
+                msg = (
+                    f'Conflicting unit types for demand type acronym '
+                    f'`{acronym}`: `{demand_name}` registers it with unit '
+                    f'type `{unit_type}`, but `{first_registrant}` already '
+                    f'registers it with unit type `{existing_unit_type}`. '
+                    f'Demand names that share an acronym must use the same '
+                    f'unit type.'
+                )
+                raise ValueError(msg)
+            self.demand_unit_types[acronym] = unit_type
+            first_registrant_by_acronym.setdefault(acronym, demand_name)
 
     @property
     def seed(self) -> float | None:
@@ -535,8 +603,9 @@ def control_warnings() -> None:
     """
     Turn warnings on/off.
 
-        See also: `pelicun/pytest.ini`. Devs: make sure to update that
-        file when addressing & eliminating warnings.
+        See also: `[tool.pytest.ini_options]` in `pyproject.toml`.
+        Devs: make sure to update that section when addressing &
+        eliminating warnings.
 
     """
     if not sys.warnoptions:
@@ -754,7 +823,10 @@ def convert_to_SimpleIndex(  # noqa: N802
             # only perform this if there are multiple levels
             if data.index.nlevels > 1:
                 simple_name = '-'.join(
-                    [n if n is not None else '' for n in data.index.names]
+                    [
+                        cast('str', n) if n is not None else ''
+                        for n in data.index.names
+                    ]
                 )
                 simple_index = [
                     '-'.join([str(id_i) for id_i in idx]) for idx in data.index
@@ -764,10 +836,16 @@ def convert_to_SimpleIndex(  # noqa: N802
                 data_mod.index.name = simple_name
 
         elif axis == 1:
+            # only a DataFrame has columns to simplify
+            assert isinstance(data, pd.DataFrame)
+            assert isinstance(data_mod, pd.DataFrame)
             # only perform this if there are multiple levels
             if data.columns.nlevels > 1:
                 simple_name = '-'.join(
-                    [n if n is not None else '' for n in data.columns.names]
+                    [
+                        cast('str', n) if n is not None else ''
+                        for n in data.columns.names
+                    ]
                 )
                 simple_index = [
                     '-'.join([str(id_i) for id_i in idx]) for idx in data.columns
@@ -857,10 +935,17 @@ def convert_to_MultiIndex(  # noqa: N802
         data_mod = data if inplace else data.copy()
 
         if axis == 0:
-            data_mod.index = pd.MultiIndex.from_arrays(index_labels_np.T)
+            # a 2D ndarray is a valid `from_arrays` input at runtime
+            data_mod.index = pd.MultiIndex.from_arrays(
+                index_labels_np.T  # type: ignore[arg-type]
+            )
 
         else:
-            data_mod.columns = pd.MultiIndex.from_arrays(index_labels_np.T)
+            # only a DataFrame has columns to convert
+            assert isinstance(data_mod, pd.DataFrame)
+            data_mod.columns = pd.MultiIndex.from_arrays(
+                index_labels_np.T  # type: ignore[arg-type]
+            )
 
         return data_mod
 
@@ -995,10 +1080,11 @@ def multiply_factor_multiple_levels(
         msg = f'No rows found matching the conditions: `{conditions}`'
         raise ValueError(msg)
 
+    # a boolean mask array is a valid `iloc` indexer at runtime
     if axis == 0:
-        df.iloc[mask.to_numpy()] *= factor
+        df.iloc[mask.to_numpy()] *= factor  # type: ignore[index]
     else:
-        df.iloc[:, mask.to_numpy()] *= factor
+        df.iloc[:, mask.to_numpy()] *= factor  # type: ignore[index]
 
 
 def _warning(
@@ -1307,47 +1393,216 @@ def dedupe_index(dataframe: pd.DataFrame, dtype: type = str) -> pd.DataFrame:
 
 # Input specs
 
-EDP_to_demand_type = {
-    # Drifts
-    'Story Drift Ratio': 'PID',
-    'Peak Interstory Drift Ratio': 'PID',
-    'Roof Drift Ratio': 'PRD',
-    'Peak Roof Drift Ratio': 'PRD',
-    'Damageable Wall Drift': 'DWD',
-    'Racking Drift Ratio': 'RDR',
-    'Mega Drift Ratio': 'PMD',
-    'Residual Drift Ratio': 'RID',
-    'Residual Interstory Drift Ratio': 'RID',
-    'Peak Effective Drift Ratio': 'EDR',
-    # Floor response
-    'Peak Floor Acceleration': 'PFA',
-    'Peak Floor Velocity': 'PFV',
-    'Peak Floor Displacement': 'PFD',
-    # Component response
-    'Peak Link Rotation Angle': 'LR',
-    'Peak Link Beam Chord Rotation': 'LBR',
-    # Wind Intensity
-    'Peak Gust Wind Speed': 'PWS',
-    # Wind Demands
-    'Peak Wind Force': 'PWF',
-    'Peak Internal Force': 'PIF',
-    'Peak Line Force': 'PLF',
-    'Peak Wind Pressure': 'PWP',
-    # Inundation Intensity
-    'Peak Inundation Height': 'PIH',
-    # Shaking Intensity
-    'Peak Ground Acceleration': 'PGA',
-    'Peak Ground Velocity': 'PGV',
-    'Spectral Acceleration': 'SA',
-    'Spectral Velocity': 'SV',
-    'Spectral Displacement': 'SD',
-    'Peak Spectral Acceleration': 'SA',
-    'Peak Spectral Velocity': 'SV',
-    'Peak Spectral Displacement': 'SD',
-    'Permanent Ground Deformation': 'PGD',
-    # Placeholder for advanced calculations
-    'One': 'ONE',
+# The demand-type vocabulary is owned by the Damage and Loss Model
+# Library (the `dlml` package), which is the single source of truth for
+# the controlled vocabularies used in the default model data. Pelicun
+# keeps its own copy of the vocabulary, including the inner
+# per-demand-type dictionaries. This dictionary provides the defaults
+# for every new Options object; use the `CustomDemandTypes` option to
+# extend the vocabulary for a specific assessment.
+EDP_TYPES: dict[str, dict[str, str]] = {
+    name: dict(info) for name, info in vocabulary.EDP_TYPES.items()
 }
+
+# Convenience view of `EDP_TYPES` that maps each verbose demand name to
+# its short demand-type acronym.
+EDP_to_demand_type: dict[str, str] = {
+    name: info['Acronym'] for name, info in EDP_TYPES.items()
+}
+
+
+#: The unit types pelicun's automatic unit assignment implements. The
+#: model library's unit-type vocabulary (`dlml.vocabulary.UNIT_TYPES`)
+#: may be broader (e.g., it also defines 'force', 'force_per_length',
+#: and 'pressure'): entries of that vocabulary missing from this set
+#: are recognized but not yet supported. This set is the single
+#: source of the supported unit types; extend it together with the
+#: unit mapping in `assessment._add_units` when adding support for a
+#: new unit type.
+SUPPORTED_UNIT_TYPES: frozenset[str] = frozenset(
+    {'acceleration', 'speed', 'displacement', 'unitless', 'rotation'}
+)
+
+
+#: The keys a "CustomDemandTypes" entry must define.
+_CUSTOM_DEMAND_TYPE_KEYS = ('Acronym', 'UnitType')
+
+
+def _validate_custom_demand_type(
+    demand_name: str, demand_info: dict[str, str]
+) -> None:
+    """
+    Validate an entry of the "CustomDemandTypes" option.
+
+    Parameters
+    ----------
+    demand_name: str
+        Verbose demand name the entry registers.
+    demand_info: dict
+        The entry itself: a dictionary with an 'Acronym' and a
+        'UnitType' key.
+
+    Raises
+    ------
+    TypeError
+        If the demand name is not a string, the entry does not map to
+        a dictionary, or the acronym or unit type is not a string.
+    ValueError
+        If the demand name, acronym, or unit type is empty, if the
+        entry is missing a required key or contains an unknown key, if
+        the unit type is not one of the valid unit types, or if the
+        unit type is valid but not yet supported by this version of
+        pelicun.
+
+    """
+    if not isinstance(demand_name, str):
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'{demand_name!r}. Demand names must be strings.'
+        )
+        raise TypeError(msg)
+    if not demand_name:
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'{demand_name!r}. Demand names must not be empty.'
+        )
+        raise ValueError(msg)
+    if not isinstance(demand_info, dict):
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'`{demand_name}`: {demand_info!r}. Each entry must map to a '
+            f'dictionary with an "Acronym" and a "UnitType" key, e.g., '
+            f"{{'Acronym': 'STR', 'UnitType': 'unitless'}}."
+        )
+        raise TypeError(msg)
+    missing_keys = [
+        key for key in _CUSTOM_DEMAND_TYPE_KEYS if key not in demand_info
+    ]
+    if missing_keys:
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'`{demand_name}`: {demand_info!r}. The entry is missing the '
+            f'following required key(s): {missing_keys}.'
+        )
+        raise ValueError(msg)
+    unknown_keys = [
+        key for key in demand_info if key not in _CUSTOM_DEMAND_TYPE_KEYS
+    ]
+    if unknown_keys:
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'`{demand_name}`: {demand_info!r}. The entry contains the '
+            f'following unknown key(s): {unknown_keys}. '
+            f'Only {list(_CUSTOM_DEMAND_TYPE_KEYS)} are allowed.'
+        )
+        raise ValueError(msg)
+    for key in _CUSTOM_DEMAND_TYPE_KEYS:
+        value = demand_info[key]
+        if not isinstance(value, str):
+            msg = (
+                f'Invalid entry in "CustomDemandTypes": '
+                f'`{demand_name}`: {demand_info!r}. '
+                f'"Acronym" and "UnitType" values must be strings.'
+            )
+            raise TypeError(msg)
+        if not value:
+            msg = (
+                f'Invalid entry in "CustomDemandTypes": '
+                f'`{demand_name}`: {demand_info!r}. '
+                f'"Acronym" and "UnitType" values must not be empty.'
+            )
+            raise ValueError(msg)
+    _validate_custom_demand_unit_type(demand_name, demand_info)
+
+
+def _validate_custom_demand_unit_type(
+    demand_name: str, demand_info: dict[str, str]
+) -> None:
+    """
+    Validate the unit type of a "CustomDemandTypes" entry.
+
+    Parameters
+    ----------
+    demand_name: str
+        Verbose demand name the entry registers.
+    demand_info: dict
+        The entry itself: a dictionary with an 'Acronym' and a
+        'UnitType' key.
+
+    Raises
+    ------
+    ValueError
+        If the unit type is not one of the valid unit types, or if it
+        is valid but not yet supported by this version of pelicun.
+
+    """
+    unit_type = demand_info['UnitType']
+    if unit_type not in vocabulary.UNIT_TYPES:
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'`{demand_name}`: {demand_info!r}. '
+            f'`{unit_type}` is not a valid unit type. '
+            f'Valid unit types: {sorted(vocabulary.UNIT_TYPES)}.'
+        )
+        raise ValueError(msg)
+    if unit_type not in SUPPORTED_UNIT_TYPES:
+        msg = (
+            f'Invalid entry in "CustomDemandTypes": '
+            f'`{demand_name}`: {demand_info!r}. '
+            f'The unit type `{unit_type}` is recognized by the model '
+            f'library but not yet supported by this version of pelicun. '
+            f'Upgrade pelicun to a version that supports it. '
+            f'Supported unit types: {sorted(SUPPORTED_UNIT_TYPES)}.'
+        )
+        raise ValueError(msg)
+
+
+def _merge_custom_demand_types(
+    custom_demand_types: dict[str, dict[str, str]], log: Logger
+) -> dict[str, dict[str, str]]:
+    """
+    Merge custom demand types into the default vocabulary.
+
+    Validates the entries of the "CustomDemandTypes" configuration
+    option and merges them into the default demand-type vocabulary
+    (`EDP_TYPES`). Custom entries may override the defaults; overrides
+    are logged.
+
+    Parameters
+    ----------
+    custom_demand_types: dict
+        The value of the "CustomDemandTypes" configuration option:
+        each key is a verbose demand name and each value is a
+        dictionary with an 'Acronym' and a 'UnitType' key.
+    log: Logger
+        Logger used to report overrides of default demand types.
+
+    Returns
+    -------
+    dict
+        The merged demand-type vocabulary, mapping each verbose demand
+        name to a dictionary with its 'Acronym' and 'UnitType'.
+
+    """
+    for demand_name, demand_info in custom_demand_types.items():
+        _validate_custom_demand_type(demand_name, demand_info)
+        default_info = EDP_TYPES.get(demand_name)
+        if default_info is not None and default_info != {
+            key: demand_info[key] for key in _CUSTOM_DEMAND_TYPE_KEYS
+        }:
+            log.msg(
+                f'"CustomDemandTypes" overrides the default demand '
+                f'type of `{demand_name}`: '
+                f'`{default_info["Acronym"]} ({default_info["UnitType"]})` -> '
+                f'`{demand_info["Acronym"]} ({demand_info["UnitType"]})`.'
+            )
+    return {
+        **{name: dict(info) for name, info in EDP_TYPES.items()},
+        **{
+            name: {key: info[key] for key in _CUSTOM_DEMAND_TYPE_KEYS}
+            for name, info in custom_demand_types.items()
+        },
+    }
 
 
 def dict_raise_on_duplicates(ordered_pairs: list[tuple]) -> dict:

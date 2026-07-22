@@ -73,6 +73,7 @@ def auto_populate(aim: dict):  # noqa: ANN201
 
     # extract the General Information
     gi = aim.get('GeneralInformation')
+    assert gi is not None
 
     # gi_ap is the 'extended AIM data - this case no extended AIM data
     gi_ap = gi.copy()

@@ -43,15 +43,18 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+from dlml import __version__ as dlml_version
 
 from pelicun import base, file_io, model, uq
-from pelicun.__init__ import __version__ as pelicun_version  # type: ignore
-from pelicun.base import EDP_to_demand_type, get
+from pelicun.__init__ import __version__ as pelicun_version
+from pelicun.base import get
+from pelicun.pelicun_warnings import PelicunWarning
 
 if TYPE_CHECKING:
     from pelicun.base import Logger
@@ -118,7 +121,7 @@ class AssessmentBase:
 
         self.log: Logger = self.options.log
         self.log.msg(
-            f'pelicun {pelicun_version} | \n',
+            f'pelicun {pelicun_version} | \nDLML {dlml_version} | \n',
             prepend_timestamp=False,
             prepend_blank_space=False,
         )
@@ -209,7 +212,6 @@ class AssessmentBase:
             data_path = file_io.substitute_default_path(
                 [f'PelicunDefault/{method_name}/{model_type}.csv'], log=self.log
             )[0]
-        assert isinstance(data_path, str)
 
         data = file_io.load_data(
             data_path, None, orientation=1, reindex=False, log=self.log
@@ -254,7 +256,6 @@ class AssessmentBase:
             data_path = file_io.substitute_default_path(
                 [f'PelicunDefault/{method_name}/{model_type}.json'], log=self.log
             )[0]
-        assert isinstance(data_path, str)
 
         with Path(data_path).open(encoding='utf-8') as f:
             data = json.load(f)
@@ -663,13 +664,13 @@ class DLCalculationAssessment(AssessmentBase):
                 nlevels_with_event_id = 4
                 if raw_demands.columns.nlevels == nlevels_with_event_id:
                     dem_to_drop += raw_demands.loc[
-                        :,  # type: ignore
+                        :,
                         idx[:, dem_type, :, :],
                     ].max(axis=1) > float(limit)
 
                 else:
                     dem_to_drop += raw_demands.loc[
-                        :,  # type: ignore
+                        :,
                         idx[dem_type, :, :],
                     ].max(axis=1) > float(limit)
 
@@ -691,7 +692,9 @@ class DLCalculationAssessment(AssessmentBase):
             if length_unit is None:
                 msg = 'A length unit is required to infer demand units.'
                 raise ValueError(msg)
-            demands = _add_units(raw_demands, length_unit)
+            demands = _add_units(
+                raw_demands, length_unit, self.options.demand_unit_types, self.log
+            )
 
         else:
             demands = raw_demands
@@ -725,7 +728,11 @@ class DLCalculationAssessment(AssessmentBase):
         assert isinstance(demand_sample, pd.DataFrame)
         assert isinstance(demand_units, pd.Series)
 
-        demand_sample = pd.concat([demand_sample, demand_units.to_frame().T])
+        # Append the units row to the sample. Use an object-dtype frame
+        # so the unit-label strings can coexist with the numeric values
+        # in the same columns.
+        demand_sample = demand_sample.astype(object)
+        demand_sample.loc['Units', :] = demand_units
 
         # get residual drift estimates, if needed
         if residual_drift_inference:
@@ -850,14 +857,14 @@ class DLCalculationAssessment(AssessmentBase):
                         cmp_marginals.loc['excessive.coll.DEM', 'Units'] = 'ea'
 
                         locs = demand_sample[
-                            collapse_fragility_demand_type  # type: ignore
+                            collapse_fragility_demand_type
                         ].columns.unique(level=0)
                         cmp_marginals.loc['excessive.coll.DEM', 'Location'] = (
                             ','.join(locs)
                         )
 
                         dirs = demand_sample[
-                            collapse_fragility_demand_type  # type: ignore
+                            collapse_fragility_demand_type
                         ].columns.unique(level=1)
                         cmp_marginals.loc['excessive.coll.DEM', 'Direction'] = (
                             ','.join(dirs)
@@ -985,10 +992,13 @@ class DLCalculationAssessment(AssessmentBase):
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
                 else:
-                    component_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/fragility.csv'], log=self.log
-                    )[0]
-                assert isinstance(component_db_path, str)
+                    # Not every method provides fragility models, so
+                    # resolve the method's dataset folder and check for
+                    # the file there.
+                    component_db_path = str(
+                        file_io.resolve_default_dataset_path(method_name)
+                        / 'fragility.csv'
+                    )
 
                 if Path(component_db_path).is_file():
                     component_db.append(component_db_path)
@@ -1041,7 +1051,8 @@ class DLCalculationAssessment(AssessmentBase):
                 coll_dem_spec = None
 
             coll_dem_name = None
-            for demand_name, demand_short in EDP_to_demand_type.items():
+            edp_to_demand_type = self.options.edp_to_demand_type
+            for demand_name, demand_short in edp_to_demand_type.items():
                 if demand_short == coll_dem:
                     coll_dem_name = demand_name
                     break
@@ -1076,6 +1087,8 @@ class DLCalculationAssessment(AssessmentBase):
                     ]
                 ),
                 length_unit,
+                self.options.demand_unit_types,
+                self.log,
             ).iloc[0, 0]
 
             adf.loc[coll_cmp_name, ('Demand', 'Unit')] = coll_dem_unit
@@ -1437,7 +1450,6 @@ class DLCalculationAssessment(AssessmentBase):
                 ['PelicunDefault/Hazus Hurricane Wind/combine_wind_flood.csv'],
                 log=self.log,
             )[0]
-            assert isinstance(file_path, str)
             combination_array = pd.read_csv(
                 file_path,
                 index_col=None,
@@ -1510,15 +1522,35 @@ class DLCalculationAssessment(AssessmentBase):
 
                 # <backwards compatibility>
                 if method_name.endswith(('csv', 'CSV')):
+                    # Legacy inputs provide a filename instead of a
+                    # method name. `substitute_default_path` recognizes
+                    # such filenames, emits a deprecation warning, and
+                    # maps them to the corresponding method and model
+                    # type.
                     consequence_db_path = file_io.substitute_default_path(
                         [f'PelicunDefault/{method_name}'], log=self.log
                     )[0]
-                else:
-                    consequence_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/consequence_repair.csv'],
+
+                    consequence_db.append(consequence_db_path)
+
+                    legacy_conseq_df = file_io.load_data(
+                        consequence_db_path,
+                        unit_conversion_factors=None,
+                        orientation=1,
+                        reindex=False,
                         log=self.log,
-                    )[0]
-                assert isinstance(consequence_db_path, str)
+                    )
+                    assert isinstance(legacy_conseq_df, pd.DataFrame)
+
+                    conseq_df = pd.concat([conseq_df, legacy_conseq_df])
+
+                    continue
+
+                # Not every method provides consequence models, so
+                # resolve the method's dataset folder and check for
+                # the file there.
+                dataset_path = file_io.resolve_default_dataset_path(method_name)
+                consequence_db_path = str(dataset_path / 'consequence_repair.csv')
 
                 if Path(consequence_db_path).is_file():
                     consequence_db.append(consequence_db_path)
@@ -1533,10 +1565,7 @@ class DLCalculationAssessment(AssessmentBase):
 
                 else:
                     # try loading loss functions instead
-                    loss_db_path = file_io.substitute_default_path(
-                        [f'PelicunDefault/{method_name}/loss_repair.csv'],
-                        log=self.log,
-                    )[0]
+                    loss_db_path = str(dataset_path / 'loss_repair.csv')
 
                     if Path(loss_db_path).is_file():
                         consequence_db.append(loss_db_path)
@@ -1581,7 +1610,12 @@ class DLCalculationAssessment(AssessmentBase):
         return conseq_df, consequence_db
 
 
-def _add_units(raw_demands: pd.DataFrame, length_unit: str) -> pd.DataFrame:
+def _add_units(
+    raw_demands: pd.DataFrame,
+    length_unit: str,
+    demand_unit_types: dict[str, str],
+    log: Logger | None = None,
+) -> pd.DataFrame:
     """
     Add units to demand columns in a DataFrame.
 
@@ -1591,11 +1625,28 @@ def _add_units(raw_demands: pd.DataFrame, length_unit: str) -> pd.DataFrame:
         The raw demand data to which units will be added.
     length_unit: str
         The unit of length to be used (e.g., 'in' for inches).
+    demand_unit_types: dict
+        Maps demand-type acronyms (e.g., 'PFA') to the unit type the
+        demand is measured in (e.g., 'acceleration'). Typically, the
+        `options.demand_unit_types` mapping, which also includes
+        demand types registered through the "CustomDemandTypes"
+        option. Demand types missing from the mapping are assumed to
+        be in base units and trigger a warning.
+    log: Logger, optional
+        Logger to route warnings through. If None, warnings are
+        emitted directly through the `warnings` module.
 
     Returns
     -------
     pd.DataFrame
         The DataFrame with units added to the appropriate demand columns.
+
+    Raises
+    ------
+    ValueError
+        If a demand type is mapped to a unit type that the model
+        library recognizes but pelicun's automatic unit assignment
+        does not implement yet (e.g., 'force').
 
     """
     demands = raw_demands.T
@@ -1628,33 +1679,64 @@ def _add_units(raw_demands: pd.DataFrame, length_unit: str) -> pd.DataFrame:
     # of the frame holds float demand values.
     demands = demands.astype(object)
 
-    # acceleration
-    acc_edps = ['PFA', 'PGA', 'SA']
-    edp_mask = np.isin(demand_cols, acc_edps)
+    # The unit that represents each unit type, given the length unit
+    # of the assessment. Rotations are always measured in radians and
+    # 'unitless' marks dimensionless demands; neither undergoes unit
+    # conversion.
+    unit_by_unit_type = {
+        'acceleration': f'{length_unit}ps2',
+        'speed': f'{length_unit}ps',
+        'displacement': length_unit,
+        'unitless': 'unitless',
+        'rotation': 'rad',
+    }
+    # Keep the mapping in lockstep with the unit types pelicun
+    # supports: extend both when adding support for a new unit type.
+    assert set(unit_by_unit_type) == base.SUPPORTED_UNIT_TYPES
 
-    if np.any(edp_mask):
-        demands.iloc[0, edp_mask] = length_unit + 'ps2'  # type: ignore
+    demand_cols_array = np.array(demand_cols)
+    unknown_demand_types = []
+    unsupported_unit_types = {}
+    for demand_type in sorted(set(demand_cols)):
+        unit_type = demand_unit_types.get(demand_type)
+        if unit_type is None:
+            unknown_demand_types.append(demand_type)
+            continue
+        if unit_type not in unit_by_unit_type:
+            # The model library's unit-type vocabulary is broader than
+            # what pelicun's automatic unit assignment implements
+            # (e.g., 'force'): user-provided unit types are validated
+            # earlier, when the "CustomDemandTypes" option is
+            # processed.
+            unsupported_unit_types[demand_type] = unit_type
+            continue
+        edp_mask = demand_cols_array == demand_type
+        demands.iloc[0, edp_mask] = unit_by_unit_type[unit_type]
 
-    # speed
-    speed_edps = ['PFV', 'PWS', 'PGV', 'SV']
-    edp_mask = np.isin(demand_cols, speed_edps)
+    if unsupported_unit_types:
+        msg = (
+            f'The following demand types are measured in a unit type '
+            f'that is recognized by the model library but not yet '
+            f'implemented in the automatic unit assignment of pelicun: '
+            f'{unsupported_unit_types}. Provide the demand data with '
+            f'an explicit Units row, in which case pelicun uses the '
+            f'provided units and skips automatic unit assignment '
+            f'entirely, or use a version of pelicun that supports '
+            f'these unit types.'
+        )
+        raise ValueError(msg)
 
-    if np.any(edp_mask):
-        demands.iloc[0, edp_mask] = length_unit + 'ps'  # type: ignore
-
-    # displacement
-    disp_edps = ['PFD', 'PIH', 'SD', 'PGD']
-    edp_mask = np.isin(demand_cols, disp_edps)
-
-    if np.any(edp_mask):
-        demands.iloc[0, edp_mask] = length_unit  # type: ignore
-
-    # drift ratio
-    rot_edps = ['PID', 'PRD', 'DWD', 'RDR', 'PMD', 'RID']
-    edp_mask = np.isin(demand_cols, rot_edps)
-
-    if np.any(edp_mask):
-        demands.iloc[0, edp_mask] = 'unitless'  # type: ignore
+    if unknown_demand_types:
+        msg = (
+            f'Unable to determine the units of the following demand '
+            f'types: {unknown_demand_types}. Their values are assumed '
+            f'to be in base units. Register custom demand types via the '
+            f'"CustomDemandTypes" option to assign units to them.'
+        )
+        if log is not None:
+            log.warning(msg)
+        else:
+            warnings.warn(msg, PelicunWarning, stacklevel=2)
 
     # convert back to simple header and return the DF
     return base.convert_to_SimpleIndex(demands, axis=1)

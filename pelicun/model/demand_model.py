@@ -45,7 +45,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numexpr as ne
 import numpy as np
@@ -291,15 +291,13 @@ class DemandModel(PelicunModel):
             )
 
             error_list = (
-                parsed_data.loc[  # type: ignore
-                    :,  # type: ignore
-                    idx['ERROR', :, :],  # type: ignore
+                parsed_data.loc[
+                    :,
+                    idx['ERROR', :, :],
                 ]
                 .to_numpy()
-                .astype(  # type: ignore
-                    bool  # type: ignore
-                )
-            )  # type: ignore
+                .astype(bool)
+            )
 
             parsed_data = parsed_data.loc[~error_list, :].copy()
             parsed_data = parsed_data.drop('ERROR', level=0, axis=1)
@@ -603,7 +601,7 @@ class DemandModel(PelicunModel):
                 'TruncateLower',
                 'TruncateUpper',
             ]
-            cal_df.loc[idx[cols, :, :], rows_to_scale] *= scale_factor  # type: ignore
+            cal_df.loc[idx[cols, :, :], rows_to_scale] *= scale_factor
 
             # load the prescribed additional uncertainty
             if 'AddUncertainty' in settings:
@@ -786,7 +784,7 @@ class DemandModel(PelicunModel):
             sig_0 = model_params.loc[:, 'Theta_1'].to_numpy()
 
             model_params.loc[:, 'Theta_1'] = np.sqrt(
-                sig_0**2.0 + sig_inc**2.0,  # type: ignore
+                sig_0**2.0 + sig_inc**2.0,
             )
 
         # remove unneeded fields from model_params
@@ -1108,7 +1106,8 @@ class DemandModel(PelicunModel):
         # number of times it needs to be replicated, along with the
         # new names of its copies (in `column_values`).
         column_index = []
-        column_values = []
+        # the sample columns are MultiIndex entries, i.e. tuples
+        column_values: list[Any] = []
         for i, column in enumerate(self.sample.columns):
             if column not in demand_cloning:
                 column_index.append(i)
@@ -1223,10 +1222,11 @@ class DemandModel(PelicunModel):
         )
 
 
-def _get_required_demand_type(
+def _get_required_demand_type(  # noqa: C901
     model_parameters: pd.DataFrame,
     pgb: pd.DataFrame,
     demand_offset: dict | None = None,
+    edp_to_demand_type: dict[str, str] | None = None,
 ) -> dict:
     """
     Get the required demand type for the components.
@@ -1260,6 +1260,14 @@ def _get_required_demand_type(
         Specifies an additional location offset for specific
         demand types. Example:
         {'PFA': -1, 'PFV': +2}.
+    edp_to_demand_type: dict, optional
+        Maps the verbose demand names used in the model parameters
+        (e.g., 'Story Drift Ratio') to short demand-type acronyms
+        (e.g., 'PID'). When an assessment is available, pass its
+        `options.edp_to_demand_type` mapping, which also includes
+        the custom demand types defined for that assessment. When
+        None, the default vocabulary in `base.EDP_to_demand_type`
+        is used.
 
     Returns
     -------
@@ -1271,6 +1279,9 @@ def _get_required_demand_type(
 
     Raises
     ------
+    KeyError
+        When a demand type in the model parameters is not part of the
+        demand-type vocabulary in `edp_to_demand_type`.
     ValueError
         When a negative value is used for `loc`. Currently not
         supported.
@@ -1281,6 +1292,10 @@ def _get_required_demand_type(
     # Assign default demand_offset to empty dict.
     if not demand_offset:
         demand_offset = {}
+
+    # Fall back to the default demand-type vocabulary.
+    if edp_to_demand_type is None:
+        edp_to_demand_type = base.EDP_to_demand_type
 
     required_edps = defaultdict(list)
 
@@ -1333,31 +1348,40 @@ def _get_required_demand_type(
                 # If there is a subtype, split the demand_type string
                 # on the '|' character
                 demand_type, subtype = demand_type.split('|')
-                # Convert the demand type to the corresponding EDP
-                # type using `base.EDP_to_demand_type`
-                demand_type = base.EDP_to_demand_type[demand_type]
-                # Concatenate the demand type and subtype to form the
-                # EDP type
-                edp_type = f'{demand_type}_{subtype}'
             else:
-                # If there is no subtype, convert the demand type to
-                # the corresponding EDP type using
-                # `base.EDP_to_demand_type`
-                demand_type = base.EDP_to_demand_type[demand_type]
-                # Assign the EDP type to be equal to the demand type
-                edp_type = demand_type
+                subtype = None
+
+            # Convert the demand type to the corresponding EDP type
+            # using `edp_to_demand_type`
+            if demand_type not in edp_to_demand_type:
+                msg = (
+                    f'Unable to convert the demand type `{demand_type}`, '
+                    f'required by component `{cmp}`, to a demand-type '
+                    f'acronym: `{demand_type}` is not part of the '
+                    f'demand-type vocabulary of this assessment. If it '
+                    f'is a custom demand type, please register it '
+                    f'through the `CustomDemandTypes` option.'
+                )
+                raise KeyError(msg)
+            demand_type = edp_to_demand_type[demand_type]
+
+            # Concatenate the demand type and subtype (if any) to form
+            # the EDP type
+            edp_type = (
+                f'{demand_type}_{subtype}' if subtype is not None else demand_type
+            )
 
             # Consider the default offset, if needed
             if demand_type in demand_offset:
                 # If the demand type has a default offset in
                 # `demand_offset`, add the offset
                 # to the default offset
-                offset = int(offset + demand_offset[demand_type])  # type: ignore
+                offset = int(offset + demand_offset[demand_type])
             else:
                 # If the demand type does not have a default offset in
                 # `demand_offset`, convert the
                 # offset to an integer
-                offset = int(offset)  # type: ignore
+                offset = int(offset)
 
             # Determine the direction
             direction = pg[2] if directional else '0'
@@ -1445,7 +1469,7 @@ def _assemble_required_demand_data(
                 # non-directional
                 demand = (
                     demand_sample.loc[
-                        :,  # type: ignore
+                        :,
                         (edp_type, location),
                     ]
                     .max(axis=1)

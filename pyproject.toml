@@ -5,9 +5,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pelicun"
-version = "3.9.0"
+version = "3.10.0.dev0"
 description = "Probabilistic Estimation of Losses, Injuries, and Community resilience Under Natural hazard events"
 readme = "README.md"
+requires-python = ">=3.9"
 license = {text = "BSD-3-Clause"}
 authors = [
     {name = "Adam Zsarnóczay", email = "adamzs@stanford.edu"}
@@ -28,6 +29,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -38,44 +40,43 @@ dependencies = [
     "numexpr>=2.8, <3.0",
     "jsonschema>=4.22.0, <5.0",
     "tqdm>=4.60.0, <5.0",
-    "requests>=2.28.0, <3.0",
     "joblib>=1.2.0, <2.0",
     "scikit-learn>=1.0.0, <2.0",
-    "packaging>=23.0, <27.0"
+    "simcenter-dlml>=3.1, <4.0"
 ]
 
 [project.optional-dependencies]
-development = [
-    "codespell",
-    "flake8",
-    "flake8-bugbear",
-    "flake8-rst",
-    "flake8-rst",
-    "flake8-rst-docstrings",
+test = [
     "glob2",
-    "jsonpath2",
-    "jupyter",
-    "jupytext",
-    "mypy",
-    "nbsphinx",
-    "numpydoc",
-    "pandas-stubs",
-    "pydocstyle",
-    "pylint",
-    "pylint-pytest",
     "pytest",
     "pytest-cov",
-    "pytest-httpserver",
     "pytest-socket",
     "pytest-xdist",
-    "rendre>0.0.14",
+]
+lint = [
+    "codespell",
+    "mypy",
+    "pandas-stubs",
     "ruff==0.7.0",
+    "types-colorama",
+]
+doc = [
+    # Autosummary imports pelicun.tests while generating stubs, and the
+    # tests package imports glob2.
+    "glob2",
+    "jupyter",
+    "jupytext",
+    "nbsphinx",
+    "numpydoc",
+    # The example notebooks executed during the docs build import pytest.
+    "pytest",
     "sphinx",
-    "sphinx-autoapi",
     "sphinx-rtd-theme",
     "sphinx_design",
     "sphinxcontrib-bibtex",
-    "types-colorama",
+]
+development = [
+    "pelicun[test,lint,doc]",
 ]
 
 [project.scripts]
@@ -93,6 +94,9 @@ exclude = ["doc_src*"]
 
 [tool.ruff]
 line-length = 85
+# Tracks `requires-python`; kept explicit so rule changes stay deliberate when
+# the floor moves.
+target-version = "py39"
 exclude = [
   "rulesets",
   "examples",
@@ -100,8 +104,7 @@ exclude = [
   ".venv*",
   "pelicun/tests/dl_calculation/e7/auto_HU_NJ.py",
   "pelicun/tests/dl_calculation/e8/auto_HU_LA.py",
-  "pelicun/tests/dl_calculation/e9/custom_pop.py",
-  "pelicun/resources/DamageAndLossModelLibrary/"
+  "pelicun/tests/dl_calculation/e9/custom_pop.py"
 ]
 
 [tool.ruff.lint]
@@ -172,13 +175,25 @@ skip = [
   "*/SimCenterDBDL/*",
   "auto_HU_NJ.py",
   "auto_HU_LA.py",
-  "custom_pop.py",
-  "*/resources/DamageAndLossModelLibrary/*"]
+  "custom_pop.py"]
 
 [tool.pytest.ini_options]
-socket_disabled_by_default = true
+# Block network access in tests (pytest-socket). Unix domain sockets stay
+# allowed because multiprocessing and joblib use them for local IPC.
+addopts = "--disable-socket --allow-unix-socket"
+# filterwarnings rules disabled so dependency deprecation warnings stay
+# visible. Re-enable individual rules below if a specific warning genuinely
+# needs suppression:
+# filterwarnings = [
+#     "ignore:.*errors='ignore' is deprecated and will raise.*:FutureWarning",
+#     "ignore:.*Downcasting object dtype arrays on.*:FutureWarning",
+#     "ignore:.*invalid value encountered in multiply.*:RuntimeWarning",
+#     "ignore:.*invalid value encountered in add.*:RuntimeWarning",
+#     "ignore:.*DataFrameGroupBy\\.apply operated on the grouping columns.*:DeprecationWarning",
+# ]
 
 [tool.mypy]
 ignore_missing_imports = true
-exclude = ".*/resources/DamageAndLossModelLibrary/.*"
+warn_unused_ignores = true
+
 namespace_packages = false

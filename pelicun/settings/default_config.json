@@ -11,6 +11,7 @@
       "PFA": -1,
       "PFV": -1
     },
+    "CustomDemandTypes": {},
     "ListAllDamageStates": false,
     "NonDirectionalMultipliers": {
       "ALL": 1.2

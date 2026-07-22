@@ -45,6 +45,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import joblib
 import numpy as np
@@ -56,6 +57,9 @@ from pelicun.assessment import Assessment
 from pelicun.auto import auto_populate
 from pelicun.file_io import substitute_default_path
 from pelicun.tools.NNR import NNR
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 def parse_id_filter(filter_str: str) -> list[int]:
@@ -83,7 +87,7 @@ def parse_id_filter(filter_str: str) -> list[int]:
     if not filter_str or not isinstance(filter_str, str):
         return []
 
-    ids = set()
+    ids: set[int] = set()
     parts = [part.strip() for part in filter_str.split(',')]
 
     for part in parts:
@@ -169,7 +173,7 @@ def format_elapsed_time(start_time: float) -> str:
 
 
 @contextlib.contextmanager
-def tqdm_joblib(tqdm_object: tqdm) -> contextlib.Generator[None, None, None]:
+def tqdm_joblib(tqdm_object: tqdm) -> Generator[None, None, None]:
     """
     Context manager to patch joblib to report progress into a tqdm progress bar.
 
@@ -205,7 +209,7 @@ def tqdm_joblib(tqdm_object: tqdm) -> contextlib.Generator[None, None, None]:
 
 def _calculate_losses_hazus_eq(
     assessment: Assessment, dl_method: str, bldg_df_chunk: pd.DataFrame
-) -> (pd.DataFrame, pd.DataFrame):
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Calculate losses using the Hazus Earthquake methodology.
 
@@ -241,6 +245,7 @@ def _calculate_losses_hazus_eq(
 
     # create a lookup table to find which fragility IDs are at which location
     dmg_sample = assessment.damage.save_sample()
+    assert isinstance(dmg_sample, pd.DataFrame)
     cmp_loc = dmg_sample.T.groupby(level=['cmp', 'loc']).first().T
 
     cmp_lookup = pd.Series(
@@ -256,16 +261,17 @@ def _calculate_losses_hazus_eq(
     # the for loop
 
     # we'll collect the results in this dict
-    loss_results = {'Cost': [], 'Time': []}
+    loss_results: dict[str, list[pd.DataFrame]] = {'Cost': [], 'Time': []}
 
     # start by extracting the full damage sample and preserving it
     full_dmg_sample = assessment.damage.save_sample()
+    assert isinstance(full_dmg_sample, pd.DataFrame)
 
     for occ_type, raw_building_ids in loss_groups.iloc[:].iterrows():
         # convert the building id list to a numpy array of ints
-        building_ids = np.array(raw_building_ids.to_numpy()[0].split(',')).astype(
-            int
-        )
+        building_ids: np.ndarray | list = np.array(
+            raw_building_ids.to_numpy()[0].split(',')
+        ).astype(int)
 
         # and make sure those IDs are in the component lookup table
         building_ids = [
@@ -305,7 +311,9 @@ def _calculate_losses_hazus_eq(
 
         assessment.loss.calculate()
 
-        repair_sample, repair_units = assessment.loss.save_sample(save_units=True)
+        save_output = assessment.loss.save_sample(save_units=True)
+        assert isinstance(save_output, tuple)
+        repair_sample, repair_units = save_output
 
         # aggregate across uid
         # this is trivial since we don't have multiple identical components at the same location
@@ -333,7 +341,9 @@ def _calculate_losses_hazus_eq(
 
         # append the results to the main dict
         for DV_type in ['Cost', 'Time']:  # noqa: N806
-            grp_repair_dv = grp_repair[DV_type].copy()
+            # selecting a level of the MultiIndex columns yields
+            # a DataFrame, not a Series
+            grp_repair_dv = cast('pd.DataFrame', grp_repair[DV_type]).copy()
             grp_repair_dv.columns = grp_repair_dv.columns.astype(int)
 
             # we did not preserve the units for now; we can add them here if needed
@@ -350,7 +360,7 @@ def _calculate_losses_hazus_eq(
 
 def _calculate_losses_general(
     assessment: Assessment, dl_method: str, decision_variables: list
-) -> (pd.DataFrame, pd.DataFrame):
+) -> tuple[pd.DataFrame, pd.DataFrame | None]:
     """
     Calculate losses using a 1-to-1 mapping approach.
 
@@ -383,7 +393,9 @@ def _calculate_losses_general(
 
     assessment.loss.calculate()
 
-    repair_sample, repair_units = assessment.loss.save_sample(save_units=True)
+    save_output = assessment.loss.save_sample(save_units=True)
+    assert isinstance(save_output, tuple)
+    repair_sample, repair_units = save_output
 
     # aggregate across uid
     # this is trivial since we don't have multiple identical components at
@@ -412,12 +424,14 @@ def _calculate_losses_general(
     # - - - -
 
     # prepare the output
-    repair_costs = grp_repair['Cost']
+    # selecting a level of the MultiIndex columns yields a DataFrame,
+    # not a Series
+    repair_costs = cast('pd.DataFrame', grp_repair['Cost'])
     repair_costs.columns = repair_costs.columns.astype(int)
     repair_costs = repair_costs.T
 
     if 'Time' in decision_variables:
-        repair_times = grp_repair['Time']
+        repair_times = cast('pd.DataFrame', grp_repair['Time'])
         repair_times.columns = repair_times.columns.astype(int)
         repair_times = repair_times.T
     else:
@@ -435,7 +449,7 @@ def process_buildings_chunk(
     sample_size_damage: int,
     dl_method: str,
     im_types: dict[str, str],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
     """
     Process a chunk of buildings through the complete regional simulation pipeline.
 
@@ -564,7 +578,7 @@ def process_buildings_chunk(
             auto_script_path,
         )
 
-        CMP['Location'] = bldg_id
+        CMP['Location'] = cast('int | str', bldg_id)
 
         CMP_list.append(CMP)
 
@@ -635,9 +649,11 @@ def process_buildings_chunk(
     assessment.damage.calculate()
 
     # retrieve damage information
-    damage_sample, damage_units = assessment.damage.save_sample(save_units=True)
+    save_output = assessment.damage.save_sample(save_units=True)
+    assert isinstance(save_output, tuple)
+    damage_sample, damage_units_series = save_output
 
-    damage_units = damage_units.to_frame().T
+    damage_units = damage_units_series.to_frame().T
 
     # aggregate across uid
     # this is trivial since we don't have multiple identical components at the same location
@@ -693,6 +709,7 @@ def process_buildings_chunk(
 
     # 6 Calculate Losses
     # Conditional loss assessment based on the DL method
+    repair_times: pd.DataFrame | None
     if dl_method == 'Hazus Earthquake - Buildings':
         # Use the original earthquake-specific loss calculation
         repair_costs, repair_times = _calculate_losses_hazus_eq(
@@ -778,7 +795,9 @@ def process_and_save_chunk(
         )
 
 
-def regional_sim(config_file: str, num_cores: int | None = None) -> None:  # noqa: C901
+def regional_sim(  # noqa: C901
+    config_file: str | Path, num_cores: int | None = None
+) -> None:
     """
     Perform a regional-scale disaster impact simulation.
 
@@ -797,7 +816,7 @@ def regional_sim(config_file: str, num_cores: int | None = None) -> None:  # noq
 
     Parameters
     ----------
-    config_file : str
+    config_file : str | Path
         Path to JSON configuration file containing simulation parameters,
         file paths, and analysis settings (inputRWHALE.json from SimCenter's R2D Tool)
     num_cores : int, optional
@@ -948,7 +967,9 @@ def regional_sim(config_file: str, num_cores: int | None = None) -> None:  # noq
         if num_cores:
             n_jobs = num_cores
         else:
-            n_jobs = max(1, os.cpu_count() - 1)
+            # `os.cpu_count()` may return None on platforms where the
+            # count is undeterminable; fall back to a single worker then.
+            n_jobs = max(1, (os.cpu_count() or 2) - 1)
 
         # Process chunks in parallel with a proper progress bar
         with (

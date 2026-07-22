@@ -41,10 +41,11 @@
 
 from __future__ import annotations
 
-import platform
+import json
 import tempfile
 from pathlib import Path
 
+import dlml
 import numpy as np
 import pandas as pd
 import pytest
@@ -103,10 +104,13 @@ def test_save_to_csv() -> None:
 
     # units given, without unit conversion factors
     filepath = Path(tmpdir) / 'foo.csv'
-    with pytest.raises(
-        ValueError,
-        match='When `units` is not None, `unit_conversion_factors` must be provided.',
-    ), tempfile.TemporaryDirectory() as tmpdir:
+    with (
+        pytest.raises(
+            ValueError,
+            match='When `units` is not None, `unit_conversion_factors` must be provided.',
+        ),
+        tempfile.TemporaryDirectory() as tmpdir,
+    ):
         file_io.save_to_csv(
             data, filepath, units, unit_conversion_factors=None, orientation=0
         )
@@ -115,10 +119,13 @@ def test_save_to_csv() -> None:
 
     # not csv extension
     filepath = Path(tmpdir) / 'foo.xyz'
-    with pytest.raises(
-        ValueError,
-        match=('Please use the `.csv` file extension. Received file name is '),
-    ), tempfile.TemporaryDirectory() as tmpdir:
+    with (
+        pytest.raises(
+            ValueError,
+            match=('Please use the `.csv` file extension. Received file name is '),
+        ),
+        tempfile.TemporaryDirectory() as tmpdir,
+    ):
         file_io.save_to_csv(
             data, filepath, units, unit_conversion_factors, orientation=0
         )
@@ -141,20 +148,143 @@ def test_save_to_csv() -> None:
     assert 'Data was empty, no file saved.' in str(record.list[0].message)
 
 
-@pytest.mark.skipif(
-    platform.system() == 'Windows',
-    reason='Skipping test on Windows due to path handling issues.',
-)
 def test_substitute_default_path() -> None:
-    input_paths: list[str | pd.DataFrame] = [
+    expected_path = str(
+        dlml.get_file(
+            'seismic/building/component/FEMA P-58 2nd Edition', 'fragility.csv'
+        )
+    )
+
+    # method alias resolution; non-default paths pass through unchanged
+    input_paths = [
         'PelicunDefault/FEMA P-58/fragility.csv',
         '/data/file2.txt',
     ]
     result_paths = file_io.substitute_default_path(input_paths)
-    assert (
-        'seismic/building/component/FEMA P-58 2nd Edition/fragility.csv'
-    ) in result_paths[0]
+    assert result_paths[0] == expected_path
     assert result_paths[1] == '/data/file2.txt'
+
+    # full DLML dataset IDs are also accepted as method names
+    result_paths = file_io.substitute_default_path(
+        [
+            'PelicunDefault/seismic/building/component/'
+            'FEMA P-58 2nd Edition/fragility.csv'
+        ]
+    )
+    assert result_paths[0] == expected_path
+
+    # backslashes and mixed separators (common in configs written on
+    # Windows) are treated as path separators on every platform;
+    # non-default passthrough entries keep their original separators
+    input_paths = [
+        'PelicunDefault/FEMA P-58\\fragility.csv',
+        'PelicunDefault\\FEMA P-58\\fragility.csv',
+        'C:\\data\\file2.txt',
+    ]
+    result_paths = file_io.substitute_default_path(input_paths)
+    assert result_paths[0] == expected_path
+    assert result_paths[1] == expected_path
+    assert result_paths[2] == 'C:\\data\\file2.txt'
+
+    # only string paths are accepted; in-memory model data (e.g.,
+    # DataFrames) needs to be handled by the caller
+    with pytest.raises(TypeError, match='Data paths need to be strings'):
+        file_io.substitute_default_path(
+            [pd.DataFrame({'A': [1.0]})]  # type: ignore[list-item]
+        )
+
+    # files absent from a dataset's folder raise
+    with pytest.raises(dlml.DatasetFileNotFoundError, match='pelicun_config.py'):
+        file_io.substitute_default_path(
+            ['PelicunDefault/FEMA P-58/pelicun_config.py']
+        )
+
+    # default paths need to include a filename
+    with pytest.raises(KeyError, match='does not include a filename'):
+        file_io.substitute_default_path(['PelicunDefault/FEMA P-58/'])
+
+    # unknown method names raise a helpful error
+    with pytest.raises(
+        KeyError, match='is not a valid method alias or DLML dataset ID'
+    ):
+        file_io.substitute_default_path(['PelicunDefault/Unknown Method/x.csv'])
+
+
+def test_substitute_default_path_legacy_names() -> None:
+    # every legacy placeholder filename resolves without error, emits a
+    # deprecation warning, and points to an existing file in the
+    # installed DLML package
+    for legacy_name in file_io.legacy_names:
+        # a fresh logger for each case: a logger emits each distinct
+        # warning message only once
+        mylogger = base.Logger(
+            log_file=None, verbose=True, log_show_ms=False, print_log=True
+        )
+        with pytest.warns(PelicunWarning, match='no longer referenced'):
+            result_paths = file_io.substitute_default_path(
+                [f'PelicunDefault/{legacy_name}.csv'], log=mylogger
+            )
+        result_path = result_paths[0]
+        assert Path(result_path).is_file(), (
+            f'Legacy name `{legacy_name}` resolved to `{result_path}`, '
+            f'which does not point to an existing file.'
+        )
+
+    # unrecognized bare filenames raise
+    with pytest.raises(KeyError, match='not recognized'):
+        file_io.substitute_default_path(['PelicunDefault/some_file.csv'])
+
+    # legacy-prefixed filenames that are not preserved for backwards
+    # compatibility raise an error that lists the valid legacy names
+    # and points at the modern method/model-type format
+    with pytest.raises(
+        KeyError,
+        match=(
+            'not one of the legacy filenames preserved for backwards '
+            'compatibility'
+        ),
+    ):
+        file_io.substitute_default_path(['PelicunDefault/damage_DB_bogus.csv'])
+
+
+def test_resolve_default_dataset_path() -> None:
+    # method aliases resolve to the dataset's folder
+    dataset_path = file_io.resolve_default_dataset_path('FEMA P-58')
+    assert dataset_path.is_dir()
+    assert (dataset_path / 'fragility.csv').is_file()
+
+    # dataset IDs resolve to the same folder as their alias
+    assert (
+        file_io.resolve_default_dataset_path(
+            'seismic/building/component/FEMA P-58 2nd Edition'
+        )
+        == dataset_path
+    )
+
+    # optional files can be probed in the folder without errors
+    assert not (dataset_path / 'pelicun_config.py').is_file()
+
+    # unknown method names raise a helpful error
+    with pytest.raises(
+        KeyError, match='is not a valid method alias or DLML dataset ID'
+    ):
+        file_io.resolve_default_dataset_path('Unknown Method')
+
+
+def test_dlml_resource_paths_are_valid_dataset_ids() -> None:
+    resource_file_path = (
+        Path(base.pelicun_path) / 'resources' / 'dlml_resource_paths.json'
+    )
+    with resource_file_path.open(encoding='utf-8') as f:
+        resource_paths = json.load(f)
+
+    valid_dataset_ids = set(dlml.list_datasets())
+    for method_name, dataset_id in resource_paths.items():
+        assert dataset_id in valid_dataset_ids, (
+            f'The `{method_name}` entry in `dlml_resource_paths.json` '
+            f'points to `{dataset_id}`, which is not a valid DLML '
+            f'dataset ID.'
+        )
 
 
 def test_load_data() -> None:
@@ -185,7 +315,8 @@ def test_load_data() -> None:
     data = file_io.load_data(
         filepath, unit_conversion_factors, orientation=1, reindex=False
     )
-    assert isinstance(data.index, pd.core.indexes.multi.MultiIndex)
+    assert isinstance(data, pd.DataFrame)
+    assert isinstance(data.index, pd.MultiIndex)
     assert data.shape == (10, 2)
     assert data.index.nlevels == 4
 
@@ -195,7 +326,8 @@ def test_load_data() -> None:
     data = file_io.load_data(
         filepath, unit_conversion_factors, orientation=1, reindex=False
     )
-    assert isinstance(data.index, pd.core.indexes.multi.MultiIndex)
+    assert isinstance(data, pd.DataFrame)
+    assert isinstance(data.index, pd.MultiIndex)
     assert data.shape == (10, 3)
     assert data.index.nlevels == 4
 

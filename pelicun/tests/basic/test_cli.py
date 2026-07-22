@@ -1,6 +1,6 @@
 #
-# Copyright (c) 2018 Leland Stanford Junior University
-# Copyright (c) 2018 The Regents of the University of California
+# Copyright (c) 2025 Leland Stanford Junior University
+# Copyright (c) 2025 The Regents of the University of California
 #
 # This file is part of pelicun.
 #
@@ -35,60 +35,58 @@
 #
 # Contributors:
 # Adam Zsarnóczay
-# John Vouvakis Manousakis
 
-"""
-A utility script for detecting duplicated blocks of lines across
-Python test files.
-"""
+"""These are unit tests for the command-line interface of pelicun."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import subprocess  # noqa: S404
+import sys
+from typing import TYPE_CHECKING
 
-from glob2 import glob
+from pelicun.cli import main
 
-
-def main(file: str) -> None:
-    """
-    Identifies and displays repeated consecutive line blocks within a
-    file, including their line numbers.
-
-    Parameters
-    ----------
-    file: str
-        Path to the file to be checked for duplicates.
-
-    """
-    # file = 'tests/test_uq.py'
-    group = 15  # find repeated blocks this many lines
-
-    with Path(file).open(encoding='utf-8') as f:
-        contents = f.readlines()
-    num_lines = len(contents)
-    for i in range(0, num_lines, group):
-        glines = contents[i : i + group]
-        for j in range(i + 1, num_lines):
-            jlines = contents[j : j + group]
-            if glines == jlines:
-                print(f'{i, j}: ')  # noqa: T201
-                for k in range(group):
-                    print(f'    {jlines[k]}', end='')  # noqa: T201
-                print()  # noqa: T201
+if TYPE_CHECKING:
+    import pytest
 
 
-def all_test_files() -> None:
-    """
-    Searches for all Python test files in the 'tests' directory and
-    runs the main function to find and print repeated line blocks in each file.
-    """
-    test_files = glob('tests/*.py')
-    for file in test_files:
-        print()  # noqa: T201
-        print(file)  # noqa: T201
-        print()  # noqa: T201
-        main(file)
+def test_dlml_stub_prints_notice(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A bare `pelicun dlml` prints the informational notice."""
+    monkeypatch.setattr(sys, 'argv', ['pelicun', 'dlml'])
+
+    main()
+
+    captured = capsys.readouterr()
+    assert 'simcenter-dlml' in captured.out
+    assert 'pip install --upgrade simcenter-dlml' in captured.out
+    assert 'no longer performs downloads' in captured.out
+    assert 'removal in pelicun 3.12' in captured.out
 
 
-if __name__ == '__main__':
-    all_test_files()
+def test_dlml_stub_accepts_legacy_arguments(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Retired `pelicun dlml update ...` invocations still succeed."""
+    monkeypatch.setattr(
+        sys, 'argv', ['pelicun', 'dlml', 'update', '--no-cache', 'v2.1.0']
+    )
+
+    main()
+
+    captured = capsys.readouterr()
+    assert 'simcenter-dlml' in captured.out
+
+
+def test_dlml_stub_exit_code() -> None:
+    """`pelicun dlml update` exits with code 0 in a real subprocess."""
+    result = subprocess.run(  # noqa: S603
+        [sys.executable, '-m', 'pelicun', 'dlml', 'update', 'latest'],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert 'simcenter-dlml' in result.stdout

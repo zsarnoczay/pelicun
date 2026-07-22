@@ -43,12 +43,12 @@ from typing import TYPE_CHECKING
 import colorama
 import numpy as np
 import pandas as pd
-from scipy.linalg import cholesky, svd  # type: ignore
-from scipy.optimize import minimize  # type: ignore
-from scipy.stats import multivariate_normal as mvn  # type: ignore
-from scipy.stats import norm, uniform, weibull_min  # type: ignore
+from scipy.linalg import cholesky, svd
+from scipy.optimize import minimize
+from scipy.stats import multivariate_normal as mvn
+from scipy.stats import norm, uniform, weibull_min
 from scipy.stats._mvn import (
-    mvndst,  # type: ignore # noqa: PLC2701
+    mvndst,  # noqa: PLC2701
 )
 
 if TYPE_CHECKING:
@@ -2879,15 +2879,16 @@ class RandomVariableRegistry:
 
 
 def rv_class_map(
-    distribution_name: str,
+    distribution_name: str | float,
 ) -> type[RandomVariable | UtilityRandomVariable]:
     """
     Map convenient distributions to their corresponding class.
 
     Parameters
     ----------
-    distribution_name: str
-        The name of a distribution.
+    distribution_name: str | float
+        The name of a distribution. A NaN value is mapped to the
+        deterministic distribution.
 
     Returns
     -------

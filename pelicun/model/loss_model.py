@@ -46,7 +46,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -62,7 +62,7 @@ from pelicun.model.pelicun_model import PelicunModel
 from pelicun.pelicun_warnings import InconsistentUnitsError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Hashable
 
     from pelicun.assessment import AssessmentBase
 
@@ -172,7 +172,7 @@ class LossModel(PelicunModel):
         return pd.concat((self.ds_model.loss_params, self.lf_model.loss_params))
 
     @property
-    def decision_variables(self) -> tuple[str, ...]:
+    def decision_variables(self) -> tuple[str, ...] | list[str]:
         """
         Retrieve the decision variables.
 
@@ -187,7 +187,9 @@ class LossModel(PelicunModel):
         return self.ds_model.decision_variables
 
     @decision_variables.setter
-    def decision_variables(self, decision_variables: tuple[str, ...]) -> None:
+    def decision_variables(
+        self, decision_variables: tuple[str, ...] | list[str]
+    ) -> None:
         """
         Set the decision variables.
 
@@ -255,7 +257,7 @@ class LossModel(PelicunModel):
             )
             assert isinstance(loss_map, pd.DataFrame)
             # <backwards compatibility>
-            if np.any(['DMG' in x for x in loss_map.index]):  # type: ignore
+            if np.any(['DMG' in x for x in loss_map.index]):
                 self.log.warning(
                     'The `DMG-` flag in the loss_map index is deprecated '
                     'and no longer necessary. '
@@ -345,8 +347,14 @@ class LossModel(PelicunModel):
         self.log.div()
         self.log.msg('Loading loss parameters...')
 
-        # replace `PelicunDefault/` flag with default data path
-        data_paths = file_io.substitute_default_path(data_paths, log=self.log)
+        # Replace `PelicunDefault/` flags with default data paths.
+        # In-memory model data (DataFrames) passes through unchanged.
+        data_paths = [
+            file_io.substitute_default_path([data_path], log=self.log)[0]
+            if isinstance(data_path, str)
+            else data_path
+            for data_path in data_paths
+        ]
 
         #
         # load loss parameter data into the models
@@ -541,7 +549,7 @@ class LossModel(PelicunModel):
 
         """
         # Specify expected dtypes from the start.
-        dtypes = {
+        dtypes: dict[Hashable, str] = {
             'Decision Variable': 'str',
             'Component': 'str',
             'Location': 'str',
@@ -919,6 +927,8 @@ class LossModel(PelicunModel):
         # levels to preserve (this aggregates `ds` for the ds_model)
         column_levels = ['dv', 'loss', 'dmg', 'loc', 'dir', 'uid']
         combined_sample = self.sample
+        # at least one sub-model has a sample at this point
+        assert combined_sample is not None
         sample = (
             combined_sample.T.groupby(level=column_levels).sum().T.sort_index(axis=1)
         )
@@ -1100,7 +1110,9 @@ class LossModel(PelicunModel):
             dcsample[col] = val  # noqa: PERF403
 
         # turn into a dataframe
-        return pd.DataFrame(dcsample).rename_axis(columns=sample.columns.names)
+        return pd.DataFrame(dcsample).rename_axis(
+            columns=cast('list[str]', sample.columns.names)
+        )
 
     def _loss_combination_add_combinable(
         self, dsample: dict, loss_combination_converted: dict, dcsample: dict
@@ -1330,9 +1342,15 @@ class LossModel(PelicunModel):
                 decision_variable == 'Time'
                 and 'Time' in aggregated.columns.get_level_values('dv')
             ):
-                df_agg['repair_time-sequential'] = aggregated['Time'].sum(axis=1)
+                # selecting a level of the MultiIndex columns yields
+                # a DataFrame, not a Series
+                df_agg['repair_time-sequential'] = cast(
+                    'pd.DataFrame', aggregated['Time']
+                ).sum(axis=1)
 
-                df_agg['repair_time-parallel'] = aggregated['Time'].max(axis=1)
+                df_agg['repair_time-parallel'] = cast(
+                    'pd.DataFrame', aggregated['Time']
+                ).max(axis=1)
             elif (
                 decision_variable == 'Time'
                 and 'Time' not in aggregated.columns.get_level_values('dv')
@@ -1342,9 +1360,9 @@ class LossModel(PelicunModel):
                 )
             # All other
             elif decision_variable in aggregated.columns.get_level_values('dv'):
-                df_agg[f'repair_{decision_variable.lower()}'] = aggregated[
-                    decision_variable
-                ].sum(axis=1)
+                df_agg[f'repair_{decision_variable.lower()}'] = cast(
+                    'pd.DataFrame', aggregated[decision_variable]
+                ).sum(axis=1)
             else:
                 df_agg = df_agg.drop(f'repair_{decision_variable.lower()}', axis=1)
 
@@ -1533,13 +1551,13 @@ class LossModel(PelicunModel):
         return self.ds_model.loss_map
 
     @_loss_map.setter
-    def _loss_map(self, loss_map: pd.DataFrame) -> None:
+    def _loss_map(self, loss_map: pd.DataFrame | None) -> None:
         """
         Set the loss map.
 
         Parameters
         ----------
-        loss_map: pd.DataFrame
+        loss_map: pd.DataFrame | None
             The loss map.
 
         """
@@ -1631,7 +1649,7 @@ class RepairModel_Base(PelicunModel):
         self.loss_params: pd.DataFrame | None = None
         self.sample: pd.DataFrame | None = None
         self.consequence = 'Repair'
-        self.decision_variables: tuple[str, ...] = ()
+        self.decision_variables: tuple[str, ...] | list[str] = ()
         self.loss_map: pd.DataFrame | None = None
         self.missing: set = set()
 
@@ -1875,7 +1893,7 @@ class RepairModel_DS(RepairModel_Base):
             .set_index('dv')
             .groupby('dv')['Units']
         )
-        dv_units = units_isolated.first().to_dict()
+        dv_units = cast('dict[str, str]', units_isolated.first().to_dict())
 
         # check if `uid` level was provided
         num_levels = len(sample.columns.names)
@@ -2009,6 +2027,7 @@ class RepairModel_DS(RepairModel_Base):
         )
         dmg_quantities = dmg_quantities.sort_index(axis=1)
 
+        std_dvs: pd.Index | list[str]
         if std_sample is not None:
             std_dvs = std_sample.columns.unique(level=0)
         else:
@@ -2042,9 +2061,9 @@ class RepairModel_DS(RepairModel_Base):
                     loc_list = []
 
                     for loc_id, loc in enumerate(
-                        dmg_quantities.loc[
-                            :, (component, ds)  # type: ignore
-                        ].columns.unique(level=0)
+                        dmg_quantities.loc[:, (component, ds)].columns.unique(
+                            level=0
+                        )
                     ):
                         if (
                             self._asmnt.options.eco_scale['AcrossFloors'] is True
@@ -2055,9 +2074,7 @@ class RepairModel_DS(RepairModel_Base):
                             median_i = medians[decision_variable].loc[
                                 :, (component, ds)
                             ]
-                            dmg_i = dmg_quantities.loc[
-                                :, (component, ds)  # type: ignore
-                            ]
+                            dmg_i = dmg_quantities.loc[:, (component, ds)]
 
                             if component in prob_cmp_list:
                                 assert std_sample is not None
@@ -2067,7 +2084,7 @@ class RepairModel_DS(RepairModel_Base):
                                         decision_variable,
                                         component,
                                         ds,
-                                    ),  # type: ignore
+                                    ),
                                 ]
                             else:
                                 std_i = None
@@ -2076,9 +2093,7 @@ class RepairModel_DS(RepairModel_Base):
                             median_i = medians[decision_variable].loc[
                                 :, (component, ds, loc)
                             ]
-                            dmg_i = dmg_quantities.loc[
-                                :, (component, ds, loc)  # type: ignore
-                            ]
+                            dmg_i = dmg_quantities.loc[:, (component, ds, loc)]
 
                             if component in prob_cmp_list:
                                 assert std_sample is not None
@@ -2089,7 +2104,7 @@ class RepairModel_DS(RepairModel_Base):
                                         component,
                                         ds,
                                         loc,
-                                    ),  # type: ignore
+                                    ),
                                 ]
                             else:
                                 std_i = None
@@ -2167,7 +2182,7 @@ class RepairModel_DS(RepairModel_Base):
                 np.all(
                     pd.isna(
                         self.loss_params.loc[
-                            :,  # type: ignore
+                            :,
                             idx[damage_state, :],
                         ].values
                     )
@@ -2451,7 +2466,7 @@ class RepairModel_DS(RepairModel_Base):
                             continue
 
                         eco_qnt_i = eco_qnt.loc[
-                            :,  # type: ignore
+                            :,
                             (loss_cmp_id, ds_id),
                         ].copy()
 
@@ -2467,7 +2482,7 @@ class RepairModel_DS(RepairModel_Base):
                         eco_qnt_i.columns.name = 'del'
 
                     # generate the median values for each realization
-                    eco_qnt_i.loc[:, :] = f_median(eco_qnt_i.values)  # type: ignore
+                    eco_qnt_i.loc[:, :] = f_median(eco_qnt_i.values)
 
                     sub_medians.append(eco_qnt_i)
                     ds_list.append(ds_id)
@@ -2483,6 +2498,7 @@ class RepairModel_DS(RepairModel_Base):
 
                 # remove the extra column header level
                 if 'del' in result.columns.names:
+                    assert isinstance(result.columns, pd.MultiIndex)
                     result.columns = result.columns.droplevel('del')
 
                 # name the remaining column header levels
@@ -2579,7 +2595,10 @@ class RepairModel_LF(RepairModel_Base):
 
         required_edps = base.invert_mapping(
             _get_required_demand_type(
-                self.loss_params, performance_group, demand_offset
+                self.loss_params,
+                performance_group,
+                demand_offset,
+                self._asmnt.options.edp_to_demand_type,
             )
         )
 

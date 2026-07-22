@@ -189,6 +189,7 @@ class PelicunModel:
                         # otherwise, we assume it is a string using SimCenter
                         # array notation to identify coordinates of a
                         # multilinear function
+                        assert isinstance(theta_i, str)
                         values = [val.split(',') for val in theta_i.split('|')]
 
                         # the first set of values defines the ordinates that
@@ -407,18 +408,18 @@ class PelicunModel:
             return np.ones(1).astype(str)
 
         try:
-            res = str(int(float(dir_str)))  # type: ignore
+            res = str(int(float(dir_str)))
             return np.array([res])
 
         except ValueError as exc:
-            if ',' in dir_str:  # type: ignore
+            if ',' in dir_str:
                 return np.array(
-                    dir_str.split(','),  # type: ignore
+                    dir_str.split(','),
                     dtype=int,
-                ).astype(str)  # type: ignore
+                ).astype(str)
 
-            if '--' in dir_str:  # type: ignore
-                d_low, d_high = dir_str.split('--')  # type: ignore
+            if '--' in dir_str:
+                d_low, d_high = dir_str.split('--')
                 d_low = self._get_directions(d_low)[0]
                 d_high = self._get_directions(d_high)[0]
                 return np.arange(int(d_low), int(d_high) + 1).astype(str)

@@ -45,7 +45,7 @@ import tempfile
 
 import numpy as np
 import pandas as pd
-from scipy.stats import norm  # type: ignore
+from scipy.stats import norm
 
 from pelicun import assessment, file_io
 
