@@ -194,5 +194,6 @@ addopts = "--disable-socket --allow-unix-socket"
 
 [tool.mypy]
 ignore_missing_imports = true
+warn_unused_ignores = true
 
 namespace_packages = false

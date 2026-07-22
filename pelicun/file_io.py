@@ -655,11 +655,9 @@ def load_data(  # noqa: C901
 
         if unit_conversion_factors is not None:
             numeric_elements = (
-                (data.select_dtypes(include=[np.number]).index)  # type: ignore
+                (data.select_dtypes(include=[np.number]).index)
                 if orientation == 0
-                else (
-                    data.select_dtypes(include=[np.number]).columns  # type: ignore
-                )
+                else (data.select_dtypes(include=[np.number]).columns)
             )
 
             if log:
@@ -675,18 +673,18 @@ def load_data(  # noqa: C901
 
             if orientation == 1:
                 data.loc[:, numeric_elements] = data.loc[
-                    :, numeric_elements  # type: ignore
+                    :, numeric_elements
                 ].multiply(
                     conversion_factors,
                     axis=axis[orientation],  # type: ignore
-                )  # type: ignore
+                )
             else:
                 data.loc[numeric_elements, :] = data.loc[
                     numeric_elements, :
                 ].multiply(
                     conversion_factors,
                     axis=axis[orientation],  # type: ignore
-                )  # type: ignore
+                )
 
         if log:
             log.msg('Unit conversion successful.', prepend_timestamp=False)
@@ -710,7 +708,7 @@ def load_data(  # noqa: C901
     if return_units:
         if units is not None:
             # convert index in units Series to MultiIndex if needed
-            units = base.convert_to_MultiIndex(units, axis=0).dropna()  # type: ignore
+            units = base.convert_to_MultiIndex(units, axis=0).dropna()
             units = units.sort_index()
         output = data, units
     else:

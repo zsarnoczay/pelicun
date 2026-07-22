@@ -47,7 +47,7 @@ import os
 import sys
 from pathlib import Path
 from time import gmtime, strftime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import colorama
 import jsonschema
@@ -652,6 +652,7 @@ def _parse_config_file(  # noqa: C901, PLR0912
         dl_method = get(config, 'Applications/DL/ApplicationData/DL_Method')
 
         if dl_method == 'User-provided Models':
+            dl_model_folder: str | Path
             if custom_model_dir is not None:
                 dl_model_folder = custom_model_dir
             else:
@@ -1057,7 +1058,7 @@ def _create_json_files_if_requested(
 
         if units_key is not None:
             df_units = convert_to_SimpleIndex(
-                data.loc[units_key, :].to_frame().T,  # type: ignore
+                data.loc[units_key, :].to_frame().T,
                 axis=1,
             )
 
@@ -1194,7 +1195,7 @@ def _demand_save(
         demand_sample_s = convert_to_SimpleIndex(demand_sample_s, axis=1)
         demand_sample_s.to_csv(
             output_path / 'DEM_sample.zip',
-            index_label=demand_sample_s.columns.name,
+            index_label=cast('str | None', demand_sample_s.columns.name),
             compression={'method': 'zip', 'archive_name': 'DEM_sample.csv'},
         )
         out_files.append('DEM_sample.zip')
@@ -1205,7 +1206,7 @@ def _demand_save(
         demand_stats = convert_to_SimpleIndex(demand_stats, axis=1)
         demand_stats.to_csv(
             output_path / 'DEM_stats.csv',
-            index_label=demand_stats.columns.name,
+            index_label=cast('str | None', demand_stats.columns.name),
         )
         out_files.append('DEM_stats.csv')
 
@@ -1255,7 +1256,7 @@ def _asset_save(
         cmp_sample_s = convert_to_SimpleIndex(cmp_sample_s, axis=1)
         cmp_sample_s.to_csv(
             output_path / 'CMP_sample.zip',
-            index_label=cmp_sample_s.columns.name,
+            index_label=cast('str | None', cmp_sample_s.columns.name),
             compression={'method': 'zip', 'archive_name': 'CMP_sample.csv'},
         )
         out_files.append('CMP_sample.zip')
@@ -1266,7 +1267,8 @@ def _asset_save(
 
         cmp_stats = convert_to_SimpleIndex(cmp_stats, axis=1)
         cmp_stats.to_csv(
-            output_path / 'CMP_stats.csv', index_label=cmp_stats.columns.name
+            output_path / 'CMP_stats.csv',
+            index_label=cast('str | None', cmp_stats.columns.name),
         )
         out_files.append('CMP_stats.csv')
 
@@ -1323,7 +1325,7 @@ def _damage_save(
         damage_sample_s = convert_to_SimpleIndex(damage_sample_s, axis=1)
         damage_sample_s.to_csv(
             output_path / 'DMG_sample.zip',
-            index_label=damage_sample_s.columns.name,
+            index_label=cast('str | None', damage_sample_s.columns.name),
             compression={
                 'method': 'zip',
                 'archive_name': 'DMG_sample.csv',
@@ -1338,7 +1340,7 @@ def _damage_save(
         damage_stats = convert_to_SimpleIndex(damage_stats, axis=1)
         damage_stats.to_csv(
             output_path / 'DMG_stats.csv',
-            index_label=damage_stats.columns.name,
+            index_label=cast('str | None', damage_stats.columns.name),
         )
         out_files.append('DMG_stats.csv')
 
@@ -1392,7 +1394,7 @@ def _damage_save(
             grp_damage_s = convert_to_SimpleIndex(grp_damage_s, axis=1)
             grp_damage_s.to_csv(
                 output_path / 'DMG_grp.zip',
-                index_label=grp_damage_s.columns.name,
+                index_label=cast('str | None', grp_damage_s.columns.name),
                 compression={
                     'method': 'zip',
                     'archive_name': 'DMG_grp.csv',
@@ -1407,7 +1409,7 @@ def _damage_save(
             grp_stats = convert_to_SimpleIndex(grp_stats, axis=1)
             grp_stats.to_csv(
                 output_path / 'DMG_grp_stats.csv',
-                index_label=grp_stats.columns.name,
+                index_label=cast('str | None', grp_stats.columns.name),
             )
             out_files.append('DMG_grp_stats.csv')
 
@@ -1467,7 +1469,7 @@ def _loss_save(  # noqa: C901
         repair_sample_s = convert_to_SimpleIndex(repair_sample_s, axis=1)
         repair_sample_s.to_csv(
             output_path / 'DV_repair_sample.zip',
-            index_label=repair_sample_s.columns.name,
+            index_label=cast('str | None', repair_sample_s.columns.name),
             compression={
                 'method': 'zip',
                 'archive_name': 'DV_repair_sample.csv',
@@ -1482,7 +1484,7 @@ def _loss_save(  # noqa: C901
         repair_stats = convert_to_SimpleIndex(repair_stats, axis=1)
         repair_stats.to_csv(
             output_path / 'DV_repair_stats.csv',
-            index_label=repair_stats.columns.name,
+            index_label=cast('str | None', repair_stats.columns.name),
         )
         out_files.append('DV_repair_stats.csv')
 
@@ -1497,7 +1499,7 @@ def _loss_save(  # noqa: C901
             grp_repair_s = convert_to_SimpleIndex(grp_repair_s, axis=1)
             grp_repair_s.to_csv(
                 output_path / 'DV_repair_grp.zip',
-                index_label=grp_repair_s.columns.name,
+                index_label=cast('str | None', grp_repair_s.columns.name),
                 compression={
                     'method': 'zip',
                     'archive_name': 'DV_repair_grp.csv',
@@ -1512,7 +1514,7 @@ def _loss_save(  # noqa: C901
             grp_stats = convert_to_SimpleIndex(grp_stats, axis=1)
             grp_stats.to_csv(
                 output_path / 'DV_repair_grp_stats.csv',
-                index_label=grp_stats.columns.name,
+                index_label=cast('str | None', grp_stats.columns.name),
             )
             out_files.append('DV_repair_grp_stats.csv')
 
@@ -1521,7 +1523,7 @@ def _loss_save(  # noqa: C901
             agg_repair_s = convert_to_SimpleIndex(agg_repair, axis=1)
             agg_repair_s.to_csv(
                 output_path / 'DV_repair_agg.zip',
-                index_label=agg_repair_s.columns.name,
+                index_label=cast('str | None', agg_repair_s.columns.name),
                 compression={
                     'method': 'zip',
                     'archive_name': 'DV_repair_agg.csv',
@@ -1533,7 +1535,7 @@ def _loss_save(  # noqa: C901
             agg_stats = convert_to_SimpleIndex(describe(agg_repair), axis=1)
             agg_stats.to_csv(
                 output_path / 'DV_repair_agg_stats.csv',
-                index_label=agg_stats.columns.name,
+                index_label=cast('str | None', agg_stats.columns.name),
             )
             out_files.append('DV_repair_agg_stats.csv')
 

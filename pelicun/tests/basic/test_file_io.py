@@ -315,7 +315,8 @@ def test_load_data() -> None:
     data = file_io.load_data(
         filepath, unit_conversion_factors, orientation=1, reindex=False
     )
-    assert isinstance(data.index, pd.core.indexes.multi.MultiIndex)
+    assert isinstance(data, pd.DataFrame)
+    assert isinstance(data.index, pd.MultiIndex)
     assert data.shape == (10, 2)
     assert data.index.nlevels == 4
 
@@ -325,7 +326,8 @@ def test_load_data() -> None:
     data = file_io.load_data(
         filepath, unit_conversion_factors, orientation=1, reindex=False
     )
-    assert isinstance(data.index, pd.core.indexes.multi.MultiIndex)
+    assert isinstance(data, pd.DataFrame)
+    assert isinstance(data.index, pd.MultiIndex)
     assert data.shape == (10, 3)
     assert data.index.nlevels == 4
 

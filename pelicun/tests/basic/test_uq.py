@@ -55,9 +55,9 @@ import numpy as np
 import pytest
 from dlml import vocabulary
 from scipy.stats import (
-    lognorm,  # type: ignore
-    norm,  # type: ignore
-    weibull_min,  # type: ignore
+    lognorm,
+    norm,
+    weibull_min,
 )
 
 from pelicun import uq

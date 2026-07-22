@@ -52,7 +52,7 @@ import pandas as pd
 from dlml import __version__ as dlml_version
 
 from pelicun import base, file_io, model, uq
-from pelicun.__init__ import __version__ as pelicun_version  # type: ignore
+from pelicun.__init__ import __version__ as pelicun_version
 from pelicun.base import get
 from pelicun.pelicun_warnings import PelicunWarning
 
@@ -664,13 +664,13 @@ class DLCalculationAssessment(AssessmentBase):
                 nlevels_with_event_id = 4
                 if raw_demands.columns.nlevels == nlevels_with_event_id:
                     dem_to_drop += raw_demands.loc[
-                        :,  # type: ignore
+                        :,
                         idx[:, dem_type, :, :],
                     ].max(axis=1) > float(limit)
 
                 else:
                     dem_to_drop += raw_demands.loc[
-                        :,  # type: ignore
+                        :,
                         idx[dem_type, :, :],
                     ].max(axis=1) > float(limit)
 
@@ -857,14 +857,14 @@ class DLCalculationAssessment(AssessmentBase):
                         cmp_marginals.loc['excessive.coll.DEM', 'Units'] = 'ea'
 
                         locs = demand_sample[
-                            collapse_fragility_demand_type  # type: ignore
+                            collapse_fragility_demand_type
                         ].columns.unique(level=0)
                         cmp_marginals.loc['excessive.coll.DEM', 'Location'] = (
                             ','.join(locs)
                         )
 
                         dirs = demand_sample[
-                            collapse_fragility_demand_type  # type: ignore
+                            collapse_fragility_demand_type
                         ].columns.unique(level=1)
                         cmp_marginals.loc['excessive.coll.DEM', 'Direction'] = (
                             ','.join(dirs)
@@ -1711,7 +1711,7 @@ def _add_units(
             unsupported_unit_types[demand_type] = unit_type
             continue
         edp_mask = demand_cols_array == demand_type
-        demands.iloc[0, edp_mask] = unit_by_unit_type[unit_type]  # type: ignore
+        demands.iloc[0, edp_mask] = unit_by_unit_type[unit_type]
 
     if unsupported_unit_types:
         msg = (

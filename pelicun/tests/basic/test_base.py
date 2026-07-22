@@ -50,6 +50,7 @@ import sys
 import tempfile
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -617,13 +618,13 @@ def test_convert_to_SimpleIndex() -> None:
     data.index.names = ['name_1', 'name_2']
     data_simple = base.convert_to_SimpleIndex(data, axis=0)
     assert data_simple.index.tolist() == ['a-b', 'c-d']
-    assert data_simple.index.name == '-'.join(data.index.names)
+    assert data_simple.index.name == '-'.join(cast('list[str]', data.index.names))
 
     # Test inplace modification
     df_inplace = data.copy()
     base.convert_to_SimpleIndex(df_inplace, axis=0, inplace=True)
     assert df_inplace.index.tolist() == ['a-b', 'c-d']
-    assert df_inplace.index.name == '-'.join(data.index.names)
+    assert df_inplace.index.name == '-'.join(cast('list[str]', data.index.names))
 
     # Test conversion of columns
     index = pd.MultiIndex.from_tuples((('a', 'b'), ('c', 'd')))
@@ -631,13 +632,15 @@ def test_convert_to_SimpleIndex() -> None:
     data.columns.names = ['name_1', 'name_2']
     data_simple = base.convert_to_SimpleIndex(data, axis=1)
     assert data_simple.columns.tolist() == ['a-b', 'c-d']
-    assert data_simple.columns.name == '-'.join(data.columns.names)
+    assert data_simple.columns.name == '-'.join(
+        cast('list[str]', data.columns.names)
+    )
 
     # Test inplace modification
     df_inplace = data.copy()
     base.convert_to_SimpleIndex(df_inplace, axis=1, inplace=True)
     assert df_inplace.columns.tolist() == ['a-b', 'c-d']
-    assert df_inplace.columns.name == '-'.join(data.columns.names)
+    assert df_inplace.columns.name == '-'.join(cast('list[str]', data.columns.names))
 
     # Test invalid axis parameter
     with pytest.raises(ValueError, match='Invalid axis parameter: 2'):

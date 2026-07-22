@@ -45,6 +45,8 @@ jobs:
         run: uv run --no-sync ruff format --check
       - name: Spell check
         run: uv run --no-sync codespell
+      - name: Type check
+        run: uv run --no-sync mypy pelicun
 
   # ----- STAGE 2: TESTS AND DOCS -----
   test:

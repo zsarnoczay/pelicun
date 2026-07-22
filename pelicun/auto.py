@@ -42,7 +42,7 @@
 from __future__ import annotations
 
 import copy
-import importlib
+import importlib.util
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 
 def auto_populate(
     config: dict,
-    auto_script_path: Path,
+    auto_script_path: str | Path,
     unique_id: int = 1,
     **kwargs,  # noqa: ANN003, ARG001
 ) -> tuple[dict, pd.DataFrame]:
@@ -76,7 +76,7 @@ def auto_populate(
         that holds another dictionary with attributes of the asset of
         interest. This dictionary is modified in-place with
         auto-populated values.
-    auto_script_path: str
+    auto_script_path: str | Path
         The path pointing to a Python script with the auto-population
         rules. Built-in scripts can be referenced using the
         'PelicunDefault/method_name/pelicun_config.py' format where
@@ -135,6 +135,9 @@ def auto_populate(
         if script_dir not in sys.path:
             sys.path.insert(0, script_dir)
         spec = importlib.util.spec_from_file_location(module_name, asp)
+        # a Python source path always yields a spec with a loader
+        assert spec is not None
+        assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         # Register the module so that a subsequent request for the same
         # script with the same unique id reuses it instead of executing

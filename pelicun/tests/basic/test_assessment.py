@@ -201,8 +201,8 @@ def test_calculate_damage_collapse_fragility_custom_demand_type() -> None:
     assert damage_params.loc['collapse', ('Demand', 'Type')] == (
         'Story Torsion Ratio'
     )
-    # the collapse-fragility demand unit follows the registered unit
-    # type: rotations are measured in radians
+    # the collapse-fragility demand unit follows the registered
+    # unit type: rotations are measured in radians
     coll_dem_unit = assessment._add_units(
         pd.DataFrame(columns=['STR-1-1']),
         'in',

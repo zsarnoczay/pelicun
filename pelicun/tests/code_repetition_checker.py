@@ -46,7 +46,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from glob2 import glob  # type: ignore
+from glob2 import glob
 
 
 def main(file: str) -> None:

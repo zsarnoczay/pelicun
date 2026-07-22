@@ -138,7 +138,7 @@ class DamageModel(PelicunModel):
     def load_model_parameters(
         self,
         data_paths: list[str | pd.DataFrame],
-        cmp_set: set[str],
+        cmp_set: set[str] | list[str],
         *,
         warn_missing: bool = True,
     ) -> None:
@@ -419,7 +419,7 @@ class DamageModel(PelicunModel):
 
         return res
 
-    def load_sample(self, filepath: str) -> None:
+    def load_sample(self, filepath: str | pd.DataFrame) -> None:
         """Load damage state sample data."""
         self.log.div()
         self.log.msg('Loading damage sample...')
@@ -436,7 +436,7 @@ class DamageModel(PelicunModel):
         self.log.msg('Damage sample successfully loaded.', prepend_timestamp=False)
 
     def _ensure_damage_parameter_availability(
-        self, cmp_set: set[str], *, warn_missing: bool
+        self, cmp_set: set[str] | list[str], *, warn_missing: bool
     ) -> list[str]:
         """
         Make sure that all components have damage parameters.
@@ -565,7 +565,7 @@ class DamageModel_Base(PelicunModel):
 
         self.damage_params = self.damage_params.drop(cmp_incomplete_idx)
 
-    def drop_unused_damage_parameters(self, cmp_set: set[str]) -> None:
+    def drop_unused_damage_parameters(self, cmp_set: set[str] | list[str]) -> None:
         """
         Remove info for non existent components.
 
@@ -1096,7 +1096,7 @@ class DamageModel_DS(DamageModel_Base):
             # Create a list of columns for the demand data
             # corresponding to each PG in the PG_list
             pg_cols = pd.concat(
-                [dmg_eval.loc[:1, PG_i] for PG_i in pg_list],  # type: ignore
+                [dmg_eval.loc[:1, PG_i] for PG_i in pg_list],
                 axis=1,
                 keys=pg_list,
             ).columns
@@ -1124,6 +1124,7 @@ class DamageModel_DS(DamageModel_Base):
 
         # initialize the DataFrames that store the damage states and
         # quantities
+        assert isinstance(capacity_sample.columns, pd.MultiIndex)
         ds_sample = pd.DataFrame(
             0,  # fill value
             columns=capacity_sample.columns.droplevel('ls').unique(),
@@ -1138,7 +1139,7 @@ class DamageModel_DS(DamageModel_Base):
         for ls_id in ls_list:
             # get all cmp - loc - dir - block where this limit state occurs
             dmg_e_ls = dmg_eval.loc[
-                :,  # type: ignore
+                :,
                 idx[:, :, :, :, :, ls_id],
             ].dropna(axis=1)
 
@@ -1146,11 +1147,12 @@ class DamageModel_DS(DamageModel_Base):
             # block
             # Note that limit states with a set of mutually exclusive damage
             # states options have their damage state picked here.
-            lsds = lsds_sample.loc[:, dmg_e_ls.columns]  # type: ignore
+            lsds = lsds_sample.loc[:, dmg_e_ls.columns]
 
             # Drop the limit state level from the columns to make the damage
             # exceedance DataFrame compatible with the other DataFrames in the
             # following steps
+            assert isinstance(dmg_e_ls.columns, pd.MultiIndex)
             dmg_e_ls.columns = dmg_e_ls.columns.droplevel(5)
 
             # Same thing for the lsds DataFrame
@@ -1164,7 +1166,7 @@ class DamageModel_DS(DamageModel_Base):
             # those cells in the result matrix will get overwritten by higher
             # damage states.
             ds_sample.loc[:, dmg_e_ls.columns] = ds_sample.loc[
-                :, dmg_e_ls.columns  # type: ignore
+                :, dmg_e_ls.columns
             ].mask(dmg_e_ls, lsds)
 
         return ds_sample
@@ -1430,7 +1432,7 @@ class DamageModel_DS(DamageModel_Base):
         for pg in pgb.index:  # noqa: PLR1702
             # determine demand capacity adjustment operation, if required
             cmp_loc_dir = '-'.join(pg[0:3])
-            capacity_adjustment_operation = scaling_specification.get(  # type: ignore
+            capacity_adjustment_operation = scaling_specification.get(
                 cmp_loc_dir,
             )
 
@@ -1551,7 +1553,7 @@ class DamageModel_DS(DamageModel_Base):
 
                         # parse theta values for multilinear_CDF
                         if family == 'multilinear_CDF':
-                            theta = np.column_stack(  # type: ignore
+                            theta = np.column_stack(
                                 (
                                     np.array(
                                         theta[0].split('|')[0].split(','),
@@ -1571,7 +1573,7 @@ class DamageModel_DS(DamageModel_Base):
                             anchor=anchor,
                         )
 
-                        capacity_rv_reg.add_RV(rv)  # type: ignore
+                        capacity_rv_reg.add_RV(rv)
 
                         # add the RV to the set of correlated variables
                         frg_rv_set_tags[block_i].append(frg_rv_tag)

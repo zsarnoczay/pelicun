@@ -45,7 +45,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numexpr as ne
 import numpy as np
@@ -291,15 +291,13 @@ class DemandModel(PelicunModel):
             )
 
             error_list = (
-                parsed_data.loc[  # type: ignore
-                    :,  # type: ignore
-                    idx['ERROR', :, :],  # type: ignore
+                parsed_data.loc[
+                    :,
+                    idx['ERROR', :, :],
                 ]
                 .to_numpy()
-                .astype(  # type: ignore
-                    bool  # type: ignore
-                )
-            )  # type: ignore
+                .astype(bool)
+            )
 
             parsed_data = parsed_data.loc[~error_list, :].copy()
             parsed_data = parsed_data.drop('ERROR', level=0, axis=1)
@@ -603,7 +601,7 @@ class DemandModel(PelicunModel):
                 'TruncateLower',
                 'TruncateUpper',
             ]
-            cal_df.loc[idx[cols, :, :], rows_to_scale] *= scale_factor  # type: ignore
+            cal_df.loc[idx[cols, :, :], rows_to_scale] *= scale_factor
 
             # load the prescribed additional uncertainty
             if 'AddUncertainty' in settings:
@@ -786,7 +784,7 @@ class DemandModel(PelicunModel):
             sig_0 = model_params.loc[:, 'Theta_1'].to_numpy()
 
             model_params.loc[:, 'Theta_1'] = np.sqrt(
-                sig_0**2.0 + sig_inc**2.0,  # type: ignore
+                sig_0**2.0 + sig_inc**2.0,
             )
 
         # remove unneeded fields from model_params
@@ -1108,7 +1106,8 @@ class DemandModel(PelicunModel):
         # number of times it needs to be replicated, along with the
         # new names of its copies (in `column_values`).
         column_index = []
-        column_values = []
+        # the sample columns are MultiIndex entries, i.e. tuples
+        column_values: list[Any] = []
         for i, column in enumerate(self.sample.columns):
             if column not in demand_cloning:
                 column_index.append(i)
@@ -1377,12 +1376,12 @@ def _get_required_demand_type(  # noqa: C901
                 # If the demand type has a default offset in
                 # `demand_offset`, add the offset
                 # to the default offset
-                offset = int(offset + demand_offset[demand_type])  # type: ignore
+                offset = int(offset + demand_offset[demand_type])
             else:
                 # If the demand type does not have a default offset in
                 # `demand_offset`, convert the
                 # offset to an integer
-                offset = int(offset)  # type: ignore
+                offset = int(offset)
 
             # Determine the direction
             direction = pg[2] if directional else '0'
@@ -1470,7 +1469,7 @@ def _assemble_required_demand_data(
                 # non-directional
                 demand = (
                     demand_sample.loc[
-                        :,  # type: ignore
+                        :,
                         (edp_type, location),
                     ]
                     .max(axis=1)

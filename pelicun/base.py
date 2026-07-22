@@ -50,14 +50,22 @@ import traceback
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Optional,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import colorama
 import numpy as np
 import pandas as pd
 from colorama import Fore, Style
 from dlml import vocabulary
-from scipy.interpolate import interp1d  # type: ignore
+from scipy.interpolate import interp1d
 
 from pelicun.pelicun_warnings import PelicunWarning
 
@@ -73,7 +81,7 @@ colorama.init()
 pp = pprint.PrettyPrinter(indent=2, width=80 - 24)
 
 pd.options.display.max_rows = 20
-pd.options.display.max_columns = None  # type: ignore
+pd.options.display.max_columns = None
 pd.options.display.expand_frame_repr = True
 pd.options.display.width = 300
 
@@ -815,7 +823,10 @@ def convert_to_SimpleIndex(  # noqa: N802
             # only perform this if there are multiple levels
             if data.index.nlevels > 1:
                 simple_name = '-'.join(
-                    [n if n is not None else '' for n in data.index.names]
+                    [
+                        cast('str', n) if n is not None else ''
+                        for n in data.index.names
+                    ]
                 )
                 simple_index = [
                     '-'.join([str(id_i) for id_i in idx]) for idx in data.index
@@ -825,10 +836,16 @@ def convert_to_SimpleIndex(  # noqa: N802
                 data_mod.index.name = simple_name
 
         elif axis == 1:
+            # only a DataFrame has columns to simplify
+            assert isinstance(data, pd.DataFrame)
+            assert isinstance(data_mod, pd.DataFrame)
             # only perform this if there are multiple levels
             if data.columns.nlevels > 1:
                 simple_name = '-'.join(
-                    [n if n is not None else '' for n in data.columns.names]
+                    [
+                        cast('str', n) if n is not None else ''
+                        for n in data.columns.names
+                    ]
                 )
                 simple_index = [
                     '-'.join([str(id_i) for id_i in idx]) for idx in data.columns
@@ -918,10 +935,17 @@ def convert_to_MultiIndex(  # noqa: N802
         data_mod = data if inplace else data.copy()
 
         if axis == 0:
-            data_mod.index = pd.MultiIndex.from_arrays(index_labels_np.T)
+            # a 2D ndarray is a valid `from_arrays` input at runtime
+            data_mod.index = pd.MultiIndex.from_arrays(
+                index_labels_np.T  # type: ignore[arg-type]
+            )
 
         else:
-            data_mod.columns = pd.MultiIndex.from_arrays(index_labels_np.T)
+            # only a DataFrame has columns to convert
+            assert isinstance(data_mod, pd.DataFrame)
+            data_mod.columns = pd.MultiIndex.from_arrays(
+                index_labels_np.T  # type: ignore[arg-type]
+            )
 
         return data_mod
 
@@ -1056,10 +1080,11 @@ def multiply_factor_multiple_levels(
         msg = f'No rows found matching the conditions: `{conditions}`'
         raise ValueError(msg)
 
+    # a boolean mask array is a valid `iloc` indexer at runtime
     if axis == 0:
-        df.iloc[mask.to_numpy()] *= factor
+        df.iloc[mask.to_numpy()] *= factor  # type: ignore[index]
     else:
-        df.iloc[:, mask.to_numpy()] *= factor
+        df.iloc[:, mask.to_numpy()] *= factor  # type: ignore[index]
 
 
 def _warning(

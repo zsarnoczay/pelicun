@@ -24,7 +24,12 @@ uv run ruff format --check pelicun doc/source setup.py
 echo 'Running Codespell...'
 uv run codespell pelicun doc/source README.md CHANGELOG.md
 
-echo '=== Stage 2: Tests ==='
+echo '=== Stage 2: Type Checking ==='
+
+echo 'Running Mypy...'
+uv run mypy pelicun
+
+echo '=== Stage 3: Tests ==='
 
 echo 'Running Pytest with Coverage...'
 uv run python -m pytest pelicun/tests --cov=pelicun -n auto

@@ -36,6 +36,15 @@ assessments configured with them. This replaces the former practice
 of editing ``EDP_to_demand_type`` in ``pelicun/base.py``, which
 stopped working when the vocabulary moved to the model library.
 
+**Static Type Checking with Mypy**: ``mypy pelicun`` is now enforced
+as part of the static checks, both locally in ``scripts/check.sh``
+and in CI, after clearing all pre-existing type errors. The fixes are
+type-level only (annotations, casts, narrowing assertions, and a
+handful of scoped ignores where the type stubs reject valid pandas
+usage) and do not change runtime behavior. Unused type-ignore
+comments were removed and are now flagged (``warn_unused_ignores``)
+so the remaining ignores stay honest.
+
 Changed
 -------
 
@@ -135,3 +144,8 @@ jsonpath2, sphinx-autoapi, and rendre packages were removed as well.
 
 Fixed
 -----
+
+**Worker-Count Fallback in Regional Simulation**: ``regional_sim`` no
+longer fails with a TypeError when ``os.cpu_count()`` returns None
+(platforms where the core count is undeterminable); it falls back to
+a single worker instead.

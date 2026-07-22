@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Custom Demand Types**: The new `CustomDemandTypes` option registers custom entries in the demand-type vocabulary of an assessment, e.g., `{"Options": {"CustomDemandTypes": {"Story Torsion Ratio": {"Acronym": "STR", "UnitType": "unitless"}}}}`. Entries map verbose demand names to a short acronym and the unit type the demand is measured in, drawn from the model library's unit-type vocabulary, extending the default vocabulary and, if a default name is reused, overriding it. Unit handling works for custom demands: when a demand file arrives without units, the assessment assigns the unit matching the registered unit type (e.g., an `acceleration` demand in an assessment using inches is interpreted in `inchps2`) and applies the corresponding unit conversion. Pelicun currently implements this automatic unit assignment for the `acceleration`, `speed`, `displacement`, `unitless`, and `rotation` unit types; `force`, `force_per_length`, and `pressure` are recognized but not yet implemented, and pelicun raises a clear error if a demand provided without explicit units needs one of them. Demand types that are neither default nor registered are still assumed to be in base units, and pelicun now warns about them instead of skipping them silently. The custom entries only apply to assessments configured with them.
 
+- **Static Type Checking with Mypy**: `mypy pelicun` is now enforced as part of the static checks, both locally in `scripts/check.sh` and in CI, after clearing all pre-existing type errors. The fixes are type-level only (annotations, casts, narrowing assertions, and a handful of scoped ignores where the type stubs reject valid pandas usage) and do not change runtime behavior. Unused type-ignore comments were removed and are now flagged (`warn_unused_ignores`) so the remaining ignores stay honest.
+
 ### Changed
 
 - **Model Library Distributed as a Python Package**: The default damage and loss model data is now resolved from the [simcenter-dlml](https://pypi.org/project/simcenter-dlml/) package, a regular pip-installed dependency of pelicun.
@@ -38,6 +40,10 @@ the same tools on the same environment.
 
 - **Runtime Model-Data Download Machinery**: With the model library installed as a package, the download machinery became dead code and was removed. This includes the `pelicun.tools.dlml` module and the first-import download hook in `pelicun/__init__.py`. `pelicun dlml update` no longer performs downloads: the subcommand is now an informational stub that explains the new distribution model and exits with code 0, so existing automation keeps working. The stub is planned for removal in pelicun 3.12.
 - **Legacy Linter Dependencies**: flake8 (and its plugins), pylint (and its plugin), and pydocstyle were removed from the development dependencies; their roles have long been covered by ruff. The unused jsonpath2, sphinx-autoapi, and rendre packages were removed as well.
+
+### Fixed
+
+- **Worker-Count Fallback in Regional Simulation**: `regional_sim` no longer fails with a TypeError when `os.cpu_count()` returns None (platforms where the core count is undeterminable); it falls back to a single worker instead.
 
 ## [3.9.0] - 2026-04-20
 

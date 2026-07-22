@@ -391,9 +391,7 @@ class AssetModel(PelicunModel):
 
         cmp_marginal_params = pd.concat(cmp_marginal_param_series, axis=1)
 
-        assert not (
-            cmp_marginal_params['Theta_0'].isna().to_numpy().any()  # type: ignore
-        )
+        assert not (cmp_marginal_params['Theta_0'].isna().to_numpy().any())
 
         cmp_marginal_params = cmp_marginal_params.dropna(axis=1, how='all')
 

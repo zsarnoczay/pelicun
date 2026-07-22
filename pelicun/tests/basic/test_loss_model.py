@@ -612,7 +612,7 @@ class TestLossModel(TestPelicunModel):
             .set_index(['dv', 'loss', 'dmg', 'ds', 'loc', 'dir', 'uid'])
             .T.astype(float)
         )
-        expected_ds.index = pd.RangeIndex(range(len(expected_ds)))  # type: ignore
+        expected_ds.index = pd.RangeIndex(range(len(expected_ds)))
         pd.testing.assert_frame_equal(
             loss_model_with_ones.ds_model.sample,  # type: ignore
             expected_ds,
@@ -633,7 +633,7 @@ class TestLossModel(TestPelicunModel):
             .set_index(['dv', 'loss', 'dmg', 'loc', 'dir', 'uid'])
             .T.astype(float)
         )
-        expected_lf.index = pd.RangeIndex(range(len(expected_lf)))  # type: ignore
+        expected_lf.index = pd.RangeIndex(range(len(expected_lf)))
         pd.testing.assert_frame_equal(
             loss_model_with_ones.lf_model.sample,  # type: ignore
             expected_lf,
@@ -813,13 +813,13 @@ class TestRepairModel_DS(TestRepairModel_Base):
         assert isinstance(rv_reg.RV['Time-cmp.A-1-0-1-0'], uq.NormalRandomVariable)
         assert isinstance(rv_reg.RV['Cost-cmp.D-1-0-1-0'], uq.NormalRandomVariable)
         assert np.all(
-            rv_reg.RV['Cost-cmp.A-1-0-1-0'].theta[0:2] == np.array((1.0, 1.0))  # type: ignore
+            rv_reg.RV['Cost-cmp.A-1-0-1-0'].theta[0:2] == np.array((1.0, 1.0))
         )
         assert np.all(
-            rv_reg.RV['Time-cmp.A-1-0-1-0'].theta[0:2] == np.array((1.0, 1.0))  # type: ignore
+            rv_reg.RV['Time-cmp.A-1-0-1-0'].theta[0:2] == np.array((1.0, 1.0))
         )
         assert np.all(
-            rv_reg.RV['Cost-cmp.D-1-0-1-0'].theta[0:2] == np.array([1.0, 1.0])  # type: ignore
+            rv_reg.RV['Cost-cmp.D-1-0-1-0'].theta[0:2] == np.array([1.0, 1.0])
         )
         assert 'DV-cmp.A-1-0-1-0_set' in rv_reg.RV_set
         np.all(
@@ -1141,10 +1141,10 @@ class TestRepairModel_LF(TestRepairModel_Base):
             rv_reg.RV['Time-cmp.A-cmp.A-0-1-0-1'], uq.NormalRandomVariable
         )
         assert np.all(
-            rv_reg.RV['Cost-cmp.A-cmp.A-0-1-0-1'].theta[0:2] == np.array((1.0, 0.3))  # type: ignore
+            rv_reg.RV['Cost-cmp.A-cmp.A-0-1-0-1'].theta[0:2] == np.array((1.0, 0.3))
         )
         assert np.all(
-            rv_reg.RV['Time-cmp.A-cmp.A-0-1-0-1'].theta[0:2] == np.array((1.0, 0.3))  # type: ignore
+            rv_reg.RV['Time-cmp.A-cmp.A-0-1-0-1'].theta[0:2] == np.array((1.0, 0.3))
         )
         assert 'DV-cmp.A-cmp.A-0-1-0-1_set' in rv_reg.RV_set
         np.all(
