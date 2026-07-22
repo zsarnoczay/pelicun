@@ -26,7 +26,7 @@ Commands are then run through uv, which keeps the environment in sync automatica
   uv run pytest pelicun/tests
   uv run ruff check pelicun
 
-The Damage and Loss Model Library data used by pelicun is downloaded automatically the first time pelicun is imported.
+The Damage and Loss Model Library data used by pelicun comes from the ``simcenter-dlml`` package, which is installed automatically together with the other dependencies.
 
 .. tip::
 

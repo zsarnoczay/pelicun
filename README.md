@@ -22,7 +22,7 @@
 
 `pelicun` is a Python package that provides tools for assessment of damage and losses due to natural hazard events. It uses a stochastic damage and loss model that is an extension of the high-resolution PEER performance assessment methodology described in FEMA P58 (FEMA, 2012). While FEMA P58 aims to assess the seismic performance of a building, with `pelicun` we provide a more versatile, hazard-agnostic tool to assess the performance of several types of assets in the built environment.
 
-`pelicun` includes an integrated **Damage and Loss Model Library (DLML)** module that provides seamless access to comprehensive model libraries with automatic data initialization and CLI integration for efficient model management.
+`pelicun` ships with the comprehensive **Damage and Loss Model Library (DLML)**, distributed as the [`simcenter-dlml`](https://pypi.org/project/simcenter-dlml/) package and installed automatically together with `pelicun`. The bundled models are available immediately after installation—no separate download step is needed and no network access is required at runtime.
 
 Detailed documentation of the available methods and their use is available at http://nheri-simcenter.github.io/pelicun
 
@@ -43,7 +43,7 @@ Detailed documentation of the available methods and their use is available at ht
 1. It is free and it always will be.
 2. It is open source. You can always see what is happening under the hood.
 3. It is efficient. The loss assessment calculations in `pelicun` use `numpy`, `scipy`, and `pandas` libraries to efficiently propagate uncertainties and provide detailed results quickly.
-4. You can trust it. Every function in `pelicun` is tested after every commit. See the Travis-CI and Coveralls badges at the top for more info.
+4. You can trust it. Every function in `pelicun` is tested after every commit through the continuous integration workflow on GitHub Actions, which runs the full test suite on Linux, Windows, and macOS across all supported Python versions.
 5. You can extend it. If you have other methods that you consider better than the ones we already offer, we encourage you to fork the repo, and extend `pelicun` with your approach. You do not need to share your extended version with the community, but if you are interested in doing so, contact us and we are more than happy to merge your version with the official release.
 
 ## Installation
