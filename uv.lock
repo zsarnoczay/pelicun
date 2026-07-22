@@ -3213,7 +3213,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'lint'", specifier = "==0.7.0" },
     { name = "scikit-learn", specifier = ">=1.0.0,<2.0" },
     { name = "scipy", specifier = ">=1.8.0,<1.16" },
-    { name = "simcenter-dlml", specifier = ">=3.0,<4.0" },
+    { name = "simcenter-dlml", specifier = ">=3.1,<4.0" },
     { name = "sphinx", marker = "extra == 'doc'" },
     { name = "sphinx-design", marker = "extra == 'doc'" },
     { name = "sphinx-rtd-theme", marker = "extra == 'doc'" },
@@ -4642,7 +4642,7 @@ wheels = [
 
 [[package]]
 name = "simcenter-dlml"
-version = "3.0"
+version = "3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jsonschema", version = "4.25.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -4652,9 +4652,9 @@ dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "pandas" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/77/ba/f2fc361a44c9f695433aad1de1c6b7a68bb10638bfbbac4098d0944addd1/simcenter_dlml-3.0.tar.gz", hash = "sha256:1ef0dda4f209adf08daea88bb4be9715af06b329f8e91f3f5548e3f30ebbface", size = 12536051, upload-time = "2026-07-14T12:50:05.973Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/5e/3be6a54c7272ee8245786df1484744b05fde6b2da34fd06949b8ab871d08/simcenter_dlml-3.1.tar.gz", hash = "sha256:212156162f61dc9c60ab58c9f16ced32f42d04f7bcad0cf0112472e706d74ea7", size = 12536760, upload-time = "2026-07-22T05:05:00.95Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/84/c4c201b78c5983e8f4d5d7d24bd4d7ccdd36a863b231e0f7695535f7f46e/simcenter_dlml-3.0-py3-none-any.whl", hash = "sha256:fc262f852ce714ce683a1aa338cce79a7cd43d64780524a8c228c1c4878c0f4d", size = 12941899, upload-time = "2026-07-14T12:50:02.856Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/e7/b2dea6f6c81d4da491c53ec5c14e7d4ff29fc6a8ca5d1917d386ce598b48/simcenter_dlml-3.1-py3-none-any.whl", hash = "sha256:643aebb30c6903525ea3a85c44270f4586428e04a189610e96009bddcbc869f9", size = 12942353, upload-time = "2026-07-22T05:04:57.937Z" },
 ]
 
 [[package]]
