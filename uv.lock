@@ -3091,7 +3091,7 @@ wheels = [
 
 [[package]]
 name = "pelicun"
-version = "3.10.0"
+version = "3.11.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "colorama" },
