@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>pelicun.tests.basic.reset_tests &mdash; pelicun  documentation</title>
+  <title>pelicun.tests.basic.test_cli &mdash; pelicun  documentation</title>
       <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../../../../_static/sphinx-design.min.css?v=95c83b7e" />
@@ -141,7 +141,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
           <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
-      <li class="breadcrumb-item active">pelicun.tests.basic.reset_tests</li>
+      <li class="breadcrumb-item active">pelicun.tests.basic.test_cli</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -150,10 +150,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <h1>Source code for pelicun.tests.basic.reset_tests</h1><div class="highlight"><pre>
+  <h1>Source code for pelicun.tests.basic.test_cli</h1><div class="highlight"><pre>
 <span></span><span class="c1">#</span>
-<span class="c1"># Copyright (c) 2018 Leland Stanford Junior University</span>
-<span class="c1"># Copyright (c) 2018 The Regents of the University of California</span>
+<span class="c1"># Copyright (c) 2025 Leland Stanford Junior University</span>
+<span class="c1"># Copyright (c) 2025 The Regents of the University of California</span>
 <span class="c1">#</span>
 <span class="c1"># This file is part of pelicun.</span>
 <span class="c1">#</span>
@@ -188,108 +188,69 @@
 <span class="c1">#</span>
 <span class="c1"># Contributors:</span>
 <span class="c1"># Adam Zsarnóczay</span>
-<span class="c1"># John Vouvakis Manousakis</span>
 
-<span class="sd">&quot;&quot;&quot;This file is used to reset all expected test result data.&quot;&quot;&quot;</span>
+<span class="sd">&quot;&quot;&quot;These are unit tests for the command-line interface of pelicun.&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">ast</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>  <span class="c1"># noqa: S404</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pelicun.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">main</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
 
 
-<div class="viewcode-block" id="reset_all_test_data">
-<a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.basic.reset_tests.html#pelicun.tests.basic.reset_tests.reset_all_test_data">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">reset_all_test_data</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">restore</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">purge</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># noqa: C901</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Update the expected result pickle files with new results, accepting</span>
-<span class="sd">    the values obtained by executing the code as correct from now on.</span>
+<div class="viewcode-block" id="test_dlml_stub_prints_notice">
+<a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.basic.test_cli.html#pelicun.tests.basic.test_cli.test_dlml_stub_prints_notice">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dlml_stub_prints_notice</span><span class="p">(</span>
+    <span class="n">monkeypatch</span><span class="p">:</span> <span class="n">pytest</span><span class="o">.</span><span class="n">MonkeyPatch</span><span class="p">,</span> <span class="n">capsys</span><span class="p">:</span> <span class="n">pytest</span><span class="o">.</span><span class="n">CaptureFixture</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A bare `pelicun dlml` prints the informational notice.&quot;&quot;&quot;</span>
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="n">sys</span><span class="p">,</span> <span class="s1">&#39;argv&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;pelicun&#39;</span><span class="p">,</span> <span class="s1">&#39;dlml&#39;</span><span class="p">])</span>
 
-<span class="sd">    CAUTION: This function should never be used if tests are</span>
-<span class="sd">    failing. Its only purpose is to aid the development of more tests</span>
-<span class="sd">    and keeping things tidy. If tests are failing, the specific tests</span>
-<span class="sd">    need to be investigated, and after rectifying the cause, new</span>
-<span class="sd">    expected test result values should be created at an individual</span>
-<span class="sd">    basis.</span>
+    <span class="n">main</span><span class="p">()</span>
 
-<span class="sd">    Note: This function assumes that the interpreter&#39;s current</span>
-<span class="sd">    directory is the package root directory (`pelicun`). The code</span>
-<span class="sd">    assumes that the test data directory exists.</span>
-<span class="sd">    Data deletion only involves `.pcl` files that begin with `test_` and</span>
-<span class="sd">    reside in /pelicun/tests/basic/data.</span>
+    <span class="n">captured</span> <span class="o">=</span> <span class="n">capsys</span><span class="o">.</span><span class="n">readouterr</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="s1">&#39;simcenter-dlml&#39;</span> <span class="ow">in</span> <span class="n">captured</span><span class="o">.</span><span class="n">out</span>
+    <span class="k">assert</span> <span class="s1">&#39;pip install --upgrade simcenter-dlml&#39;</span> <span class="ow">in</span> <span class="n">captured</span><span class="o">.</span><span class="n">out</span>
+    <span class="k">assert</span> <span class="s1">&#39;no longer performs downloads&#39;</span> <span class="ow">in</span> <span class="n">captured</span><span class="o">.</span><span class="n">out</span>
+    <span class="k">assert</span> <span class="s1">&#39;removal in pelicun 3.12&#39;</span> <span class="ow">in</span> <span class="n">captured</span><span class="o">.</span><span class="n">out</span></div>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    restore: bool</span>
-<span class="sd">      Whether to re-generate the test result data</span>
-<span class="sd">    purge: bool</span>
-<span class="sd">      Whether to remove the test result data before re-generating the</span>
-<span class="sd">      new values.</span>
 
-<span class="sd">    Raises</span>
-<span class="sd">    ------</span>
-<span class="sd">    ValueError</span>
-<span class="sd">      If the test directory is not found.</span>
 
-<span class="sd">    OSError</span>
-<span class="sd">      If the code is ran from the wrong directory. This code is only</span>
-<span class="sd">      meant to be executed with the interpreter running in the</span>
-<span class="sd">      `pelicun` directory. Dangerous things may happen otherwise.</span>
+<div class="viewcode-block" id="test_dlml_stub_accepts_legacy_arguments">
+<a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.basic.test_cli.html#pelicun.tests.basic.test_cli.test_dlml_stub_accepts_legacy_arguments">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dlml_stub_accepts_legacy_arguments</span><span class="p">(</span>
+    <span class="n">monkeypatch</span><span class="p">:</span> <span class="n">pytest</span><span class="o">.</span><span class="n">MonkeyPatch</span><span class="p">,</span> <span class="n">capsys</span><span class="p">:</span> <span class="n">pytest</span><span class="o">.</span><span class="n">CaptureFixture</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retired `pelicun dlml update ...` invocations still succeed.&quot;&quot;&quot;</span>
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span>
+        <span class="n">sys</span><span class="p">,</span> <span class="s1">&#39;argv&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;pelicun&#39;</span><span class="p">,</span> <span class="s1">&#39;dlml&#39;</span><span class="p">,</span> <span class="s1">&#39;update&#39;</span><span class="p">,</span> <span class="s1">&#39;--no-cache&#39;</span><span class="p">,</span> <span class="s1">&#39;v2.1.0&#39;</span><span class="p">]</span>
+    <span class="p">)</span>
 
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">cwd</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">cwd</span> <span class="o">!=</span> <span class="s1">&#39;pelicun&#39;</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="s1">&#39;Wrong directory. &#39;</span>
-            <span class="s1">&#39;See the docstring of `reset_all_test_data`. Aborting&#39;</span>
-        <span class="p">)</span>
-        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">main</span><span class="p">()</span>
 
-    <span class="c1"># where the test result data are stored</span>
-    <span class="n">testdir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s1">&#39;tests&#39;</span><span class="p">)</span> <span class="o">/</span> <span class="s1">&#39;data&#39;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">testdir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="s1">&#39;pelicun/tests/basic/data directory not found.&#39;</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">captured</span> <span class="o">=</span> <span class="n">capsys</span><span class="o">.</span><span class="n">readouterr</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="s1">&#39;simcenter-dlml&#39;</span> <span class="ow">in</span> <span class="n">captured</span><span class="o">.</span><span class="n">out</span></div>
 
-    <span class="c1"># clean up existing test result data</span>
-    <span class="c1"># only remove .pcl files that start with `test_`</span>
-    <span class="n">pattern</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^test_.\.pcl&#39;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">purge</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">):</span>
-            <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">pattern</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-                    <span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">root</span><span class="p">)</span> <span class="o">/</span> <span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 
-    <span class="c1"># generate new data</span>
-    <span class="k">if</span> <span class="n">restore</span><span class="p">:</span>
-        <span class="c1"># get a list of all existing test files and iterate</span>
-        <span class="n">test_files</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s1">&#39;tests&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s1">&#39;*test*.py&#39;</span><span class="p">))</span>
-        <span class="k">for</span> <span class="n">test_file</span> <span class="ow">in</span> <span class="n">test_files</span><span class="p">:</span>
-            <span class="c1"># open the file and statically parse the code looking for functions</span>
-            <span class="k">with</span> <span class="n">Path</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
-                <span class="n">node</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-            <span class="n">functions</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">body</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">ast</span><span class="o">.</span><span class="n">FunctionDef</span><span class="p">)]</span>
-            <span class="c1"># iterate over the functions looking for test_ functions</span>
-            <span class="c1"># with `reset` as an argument</span>
-            <span class="k">for</span> <span class="n">function</span> <span class="ow">in</span> <span class="n">functions</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">function</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;test_&#39;</span><span class="p">):</span>
-                    <span class="c1"># list the arguments of the function</span>
-                    <span class="n">arguments</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">.</span><span class="n">arg</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">function</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">args</span><span class="p">]</span>
-                    <span class="k">if</span> <span class="s1">&#39;reset&#39;</span> <span class="ow">in</span> <span class="n">arguments</span><span class="p">:</span>
-                        <span class="c1"># we want to import it and run it with reset=True</span>
-                        <span class="c1"># construct a module name, like &#39;tests.test_uq&#39;</span>
-                        <span class="n">module_name</span> <span class="o">=</span> <span class="s1">&#39;tests.&#39;</span> <span class="o">+</span> <span class="n">Path</span><span class="p">(</span><span class="n">test_file</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-                            <span class="s1">&#39;.py&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span>
-                        <span class="p">)</span>
-                        <span class="c1"># import the module</span>
-                        <span class="n">module</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="n">module_name</span><span class="p">)</span>
-                        <span class="c1"># get the function</span>
-                        <span class="n">func</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">function</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-                        <span class="c1"># run it to reset its expected test output data</span>
-                        <span class="n">func</span><span class="p">(</span><span class="n">reset</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="test_dlml_stub_exit_code">
+<a class="viewcode-back" href="../../../../api_reference/_autosummary/pelicun.tests.basic.test_cli.html#pelicun.tests.basic.test_cli.test_dlml_stub_exit_code">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dlml_stub_exit_code</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;`pelicun dlml update` exits with code 0 in a real subprocess.&quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>  <span class="c1"># noqa: S603</span>
+        <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s1">&#39;-m&#39;</span><span class="p">,</span> <span class="s1">&#39;pelicun&#39;</span><span class="p">,</span> <span class="s1">&#39;dlml&#39;</span><span class="p">,</span> <span class="s1">&#39;update&#39;</span><span class="p">,</span> <span class="s1">&#39;latest&#39;</span><span class="p">],</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">assert</span> <span class="s1">&#39;simcenter-dlml&#39;</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">stdout</span></div>
 
 </pre></div>
 
