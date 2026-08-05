@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-08-05
+
+The headline change in 3.10.0 is the **packaged model library**: the default damage and loss models now come from [simcenter-dlml](https://pypi.org/project/simcenter-dlml/), a regular pip-installed dependency, and the runtime download machinery is gone. Importing pelicun downloads nothing and writes nothing into the installation directory, so pelicun works on HPC compute nodes and other machines without internet access. The new **CustomDemandTypes** option registers custom demand types for an assessment; it replaces editing `EDP_to_demand_type` in `pelicun/base.py`, which has no effect now that the vocabulary comes from the model library.
+
+On the development side, the environment and CI are now managed with uv against a committed lock file, mypy type checking is enforced, the test suite blocks network access by default, and Python 3.13 is supported.
+
 ### Added
 
 - **Python 3.13 Support**: Python 3.13 was added to the CI test matrix and to the package classifiers, and the package now declares `requires-python >= 3.9` explicitly.
